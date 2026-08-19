@@ -2,6 +2,8 @@ namespace StatPreview.Preview
 {
     internal static class ItemPreviewCalculator
     {
+        private const float WeightPerCarryUnit = 0.025f;
+
         internal static ItemPreview Compute(Item item, Character character)
         {
             var preview = new ItemPreview();
@@ -10,6 +12,7 @@ namespace StatPreview.Preview
                 return preview;
             }
 
+            bool consumed = false;
             var actions = item.GetComponents<ItemAction>();
             foreach (var action in actions)
             {
@@ -34,6 +37,15 @@ namespace StatPreview.Preview
                 {
                     preview.AddStatus(CharacterAfflictions.STATUSTYPE.Hunger, -restoreHunger.restorationAmount);
                 }
+                else if (action is Action_Consume || action is Action_ConsumeAndSpawn)
+                {
+                    consumed = true;
+                }
+            }
+
+            if (consumed)
+            {
+                preview.AddStatus(CharacterAfflictions.STATUSTYPE.Weight, -WeightPerCarryUnit * item.CarryWeight);
             }
 
             return preview;
