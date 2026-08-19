@@ -13,6 +13,7 @@ namespace StatPreview.Ui
 
         private readonly Dictionary<CharacterAfflictions.STATUSTYPE, GhostBadge> _statusGhosts = new Dictionary<CharacterAfflictions.STATUSTYPE, GhostBadge>();
         private GhostSegment _extraStaminaGhost;
+        private GhostStaminaArea _staminaArea;
 
         private void LateUpdate()
         {
@@ -81,6 +82,11 @@ namespace StatPreview.Ui
                 _extraStaminaGhost = GhostSegment.Create(_bar.transform, ExtraStaminaGhostTint);
             }
 
+            if (_staminaArea == null && _bar.maxStaminaBar != null && _bar.staminaBar != null)
+            {
+                _staminaArea = new GhostStaminaArea(_bar.maxStaminaBar, _bar.staminaBar);
+            }
+
             _built = true;
         }
 
@@ -96,12 +102,19 @@ namespace StatPreview.Ui
             Preview.ItemPreview preview = Preview.HeldItemPreviewTracker.Instance.Current;
             float fullLocalWidth = _fullBar.sizeDelta.x;
 
+            float totalIncrease = 0f;
             foreach (KeyValuePair<CharacterAfflictions.STATUSTYPE, GhostBadge> entry in _statusGhosts)
             {
-                preview.StatusDeltas.TryGetValue(entry.Key, out float delta);
+                preview.StatusIncreases.TryGetValue(entry.Key, out float increase);
+                preview.StatusDecreases.TryGetValue(entry.Key, out float decrease);
                 float live = character.refs.afflictions.GetCurrentStatus(entry.Key);
-                entry.Value.Apply(fullLocalWidth, live, delta);
+                entry.Value.Apply(fullLocalWidth, live, decrease, increase);
+
+                float shrinkMagnitude = Mathf.Min(decrease, live);
+                totalIncrease += Mathf.Max(0f, increase - shrinkMagnitude);
             }
+
+            _staminaArea?.Apply(fullLocalWidth, character.GetMaxStamina(), character.data.currentStamina, totalIncrease);
 
             if (_extraStaminaGhost != null)
             {
@@ -129,6 +142,7 @@ namespace StatPreview.Ui
                 badge.Hide();
             }
             _extraStaminaGhost?.Hide();
+            _staminaArea?.Release();
         }
     }
 }
