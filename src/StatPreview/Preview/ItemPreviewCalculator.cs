@@ -1,3 +1,5 @@
+using Peak.Afflictions;
+
 namespace StatPreview.Preview
 {
     internal static class ItemPreviewCalculator
@@ -41,6 +43,21 @@ namespace StatPreview.Preview
                 {
                     consumed = true;
                 }
+                else if (action is Action_InflictPoison inflictPoison)
+                {
+                    preview.AddStatus(CharacterAfflictions.STATUSTYPE.Poison, inflictPoison.inflictionTime * inflictPoison.poisonPerSecond);
+                }
+                else if (action is Action_ApplyAffliction applyAffliction)
+                {
+                    AddAffliction(preview, applyAffliction.affliction);
+                    if (applyAffliction.extraAfflictions != null)
+                    {
+                        foreach (Affliction extra in applyAffliction.extraAfflictions)
+                        {
+                            AddAffliction(preview, extra);
+                        }
+                    }
+                }
             }
 
             if (consumed)
@@ -49,6 +66,26 @@ namespace StatPreview.Preview
             }
 
             return preview;
+        }
+
+        // covers the eventual effect of afflictions that only apply once their
+        // buff wears off (energy drink's crash, infinite stamina's drowsiness)
+        private static void AddAffliction(ItemPreview preview, Affliction affliction)
+        {
+            if (affliction is Affliction_FasterBoi fasterBoi)
+            {
+                // Affliction_FasterBoi.OnApplied() hardcodes -0.5 Drowsy immediately, separate from drowsyOnEnd later
+                preview.AddStatus(CharacterAfflictions.STATUSTYPE.Drowsy, -0.5f);
+                preview.AddStatus(CharacterAfflictions.STATUSTYPE.Drowsy, fasterBoi.drowsyOnEnd);
+            }
+            else if (affliction is Affliction_InfiniteStamina infiniteStamina && infiniteStamina.drowsyAffliction != null)
+            {
+                AddAffliction(preview, infiniteStamina.drowsyAffliction);
+            }
+            else if (affliction is Affliction_AdjustDrowsyOverTime drowsyOverTime)
+            {
+                preview.AddStatus(CharacterAfflictions.STATUSTYPE.Drowsy, drowsyOverTime.statusPerSecond * drowsyOverTime.totalTime);
+            }
         }
     }
 }

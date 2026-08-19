@@ -3,9 +3,11 @@ using UnityEngine.UI;
 
 namespace StatPreview.Ui
 {
-    // splits a real BarAffliction badge into a shrunk real part plus a ghost
-    // sibling in the same layout group, own state tracked privately since
-    // AddStamina's per-tick ChangeBar() keeps stomping BarAffliction.size
+    // splits a real BarAffliction badge into a shrunk real part plus up to two
+    // ghost siblings in the same layout group (one for a decrease, one for an
+    // increase, shown independently rather than netted against each other),
+    // own state tracked privately since AddStamina's per-tick ChangeBar() keeps
+    // stomping BarAffliction.size
     internal class GhostBadge
     {
         private const float LerpRate = 10f;
@@ -13,64 +15,39 @@ namespace StatPreview.Ui
 
         private readonly RectTransform _realRtf;
         private readonly GameObject _realIcon;
-        private readonly RectTransform _ghostRtf;
+        private readonly Strip _decreaseGhost;
+        private readonly Strip _increaseGhost;
         private bool _realShrinking;
         private float _realDisplayedWidth;
-        private bool _ghostWasVisible;
 
-        private GhostBadge(RectTransform realRtf, GameObject realIcon, RectTransform ghostRtf)
+        private GhostBadge(RectTransform realRtf, GameObject realIcon, Strip decreaseGhost, Strip increaseGhost)
         {
             _realRtf = realRtf;
             _realIcon = realIcon;
-            _ghostRtf = ghostRtf;
+            _decreaseGhost = decreaseGhost;
+            _increaseGhost = increaseGhost;
         }
 
-        internal bool IsValid => _realRtf != null && _ghostRtf != null;
+        internal bool IsValid => _realRtf != null && _decreaseGhost.IsValid && _increaseGhost.IsValid;
 
         internal static GhostBadge Create(BarAffliction realAffliction)
         {
             RectTransform realBadge = realAffliction.rtf;
-            GameObject go = Object.Instantiate(realBadge.gameObject, realBadge.parent);
-            go.name = realBadge.name + " (StatPreview Ghost)";
-
-            BarAffliction driver = go.GetComponent<BarAffliction>();
-            if (driver != null)
-            {
-                if (driver.icon != null)
-                {
-                    driver.icon.gameObject.SetActive(false);
-                }
-                Object.Destroy(driver);
-            }
-
-            foreach (Image image in go.GetComponentsInChildren<Image>(includeInactive: true))
-            {
-                Color c = Color.Lerp(image.color, Color.white, 0.4f);
-                c.a = 0.65f;
-                image.color = c;
-            }
-
-            go.transform.SetSiblingIndex(realBadge.GetSiblingIndex() + 1);
-            go.SetActive(false);
+            Strip decreaseGhost = Strip.CloneFrom(realBadge, realBadge);
+            Strip increaseGhost = Strip.CloneFrom(realBadge, decreaseGhost.Rtf);
 
             GameObject realIcon = realAffliction.icon != null ? realAffliction.icon.gameObject : null;
-            return new GhostBadge(realBadge, realIcon, go.GetComponent<RectTransform>());
+            return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost);
         }
 
-        internal void Apply(float fullLocalWidth, float liveValue, float delta)
+        internal void Apply(float fullLocalWidth, float liveValue, float decreaseAmount, float increaseAmount)
         {
-            float ghostMagnitude = delta < 0f ? Mathf.Min(-delta, liveValue) : delta;
-            if (ghostMagnitude <= 0f)
-            {
-                Hide();
-                return;
-            }
-
             float lerpStep = Mathf.Min(Time.deltaTime * LerpRate, MaxLerpStep);
+            float shrinkMagnitude = Mathf.Min(decreaseAmount, liveValue);
 
-            if (delta < 0f)
+            if (shrinkMagnitude > 0f)
             {
-                float remaining = Mathf.Max(0f, liveValue - ghostMagnitude);
+                float remaining = Mathf.Max(0f, liveValue - shrinkMagnitude);
                 float targetWidth = fullLocalWidth * remaining;
 
                 if (!_realShrinking)
@@ -87,18 +64,21 @@ namespace StatPreview.Ui
                     _realIcon.SetActive(remaining > 0.001f);
                 }
             }
-
-            if (!_ghostWasVisible)
+            else if (_realShrinking)
             {
-                _ghostRtf.sizeDelta = new Vector2(0f, _ghostRtf.sizeDelta.y);
+                _realShrinking = false;
+                if (_realIcon != null)
+                {
+                    _realIcon.SetActive(true);
+                }
             }
-            _ghostWasVisible = true;
 
-            float ghostTargetWidth = fullLocalWidth * ghostMagnitude;
-            float ghostCurrentWidth = _ghostRtf.sizeDelta.x;
-            _ghostRtf.transform.SetSiblingIndex(_realRtf.GetSiblingIndex() + 1);
-            _ghostRtf.sizeDelta = new Vector2(Mathf.Lerp(ghostCurrentWidth, ghostTargetWidth, lerpStep), _ghostRtf.sizeDelta.y);
-            _ghostRtf.gameObject.SetActive(true);
+            // the part of the increase that lands within the space the decrease already vacated doesn't need its own extra room
+            // only the pure removal (what's gone for good) and the pure increase (what grows beyond the current width)
+            // actually need separate space
+            float overlap = Mathf.Min(shrinkMagnitude, increaseAmount);
+            _decreaseGhost.Apply(fullLocalWidth * (shrinkMagnitude - overlap), lerpStep);
+            _increaseGhost.Apply(fullLocalWidth * increaseAmount, lerpStep);
 
             RectTransform parent = _realRtf.parent as RectTransform;
             if (parent != null)
@@ -110,14 +90,72 @@ namespace StatPreview.Ui
         internal void Hide()
         {
             _realShrinking = false;
-            _ghostWasVisible = false;
-            if (_ghostRtf != null)
-            {
-                _ghostRtf.gameObject.SetActive(false);
-            }
+            _decreaseGhost.Hide();
+            _increaseGhost.Hide();
             if (_realIcon != null)
             {
                 _realIcon.SetActive(true);
+            }
+        }
+
+        // one cloned, tinted badge sibling whose width is driven independently
+        private readonly struct Strip
+        {
+            internal readonly RectTransform Rtf;
+
+            private Strip(RectTransform rtf)
+            {
+                Rtf = rtf;
+            }
+
+            internal bool IsValid => Rtf != null;
+
+            internal static Strip CloneFrom(RectTransform sourceBadge, Transform insertAfter)
+            {
+                GameObject go = Object.Instantiate(sourceBadge.gameObject, sourceBadge.parent);
+                go.name = sourceBadge.name + " (StatPreview Ghost)";
+
+                BarAffliction driver = go.GetComponent<BarAffliction>();
+                if (driver != null)
+                {
+                    if (driver.icon != null)
+                    {
+                        driver.icon.gameObject.SetActive(false);
+                    }
+                    Object.Destroy(driver);
+                }
+
+                foreach (Image image in go.GetComponentsInChildren<Image>(includeInactive: true))
+                {
+                    Color c = Color.Lerp(image.color, Color.white, 0.4f);
+                    c.a = 0.65f;
+                    image.color = c;
+                }
+
+                go.transform.SetSiblingIndex(insertAfter.GetSiblingIndex() + 1);
+                go.SetActive(false);
+                return new Strip(go.GetComponent<RectTransform>());
+            }
+
+            internal void Apply(float targetWidth, float lerpStep)
+            {
+                if (targetWidth <= 0f)
+                {
+                    Hide();
+                    return;
+                }
+
+                float current = Rtf.gameObject.activeSelf ? Rtf.sizeDelta.x : 0f;
+                Rtf.sizeDelta = new Vector2(Mathf.Lerp(current, targetWidth, lerpStep), Rtf.sizeDelta.y);
+                Rtf.gameObject.SetActive(true);
+            }
+
+            internal void Hide()
+            {
+                if (Rtf != null)
+                {
+                    Rtf.gameObject.SetActive(false);
+                }
             }
         }
     }
