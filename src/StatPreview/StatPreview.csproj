@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>StatPreview</AssemblyName>
+    <Product>StatPreview</Product>
+    <Version>0.1.0</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS0436;CS0618;CS0649</NoWarn>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugType>portable</DebugType>
+    <RestoreAdditionalProjectSources></RestoreAdditionalProjectSources>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+    <R2ModManCacheDir Condition="'$(R2ModManCacheDir)' == ''">$(R2ModManCacheRoot)/$(Version)</R2ModManCacheDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <_GameAsm Include="$(GameManagedDir)/*.dll"
+              Exclude="$(GameManagedDir)/System*.dll;$(GameManagedDir)/mscorlib.dll;$(GameManagedDir)/netstandard.dll;$(GameManagedDir)/Microsoft.*.dll;$(GameManagedDir)/Mono.*.dll" />
+    <Reference Include="@(_GameAsm)">
+      <Private>false</Private>
+      <HintPath>%(_GameAsm.Identity)</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExCoreDir)/BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExCoreDir)/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="DeployToProfile" AfterTargets="Build" Condition="'$(DeployToProfile)' == 'true'">
+    <MakeDir Directories="$(ProfilePluginsDir)/OnlyCook-StatPreview" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll"
+          DestinationFolder="$(ProfilePluginsDir)/OnlyCook-StatPreview" />
+    <Message Importance="high" Text="Deployed $(AssemblyName).dll -> $(ProfilePluginsDir)/OnlyCook-StatPreview" />
+
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll"
+          DestinationFolder="$(R2ModManCacheDir)"
+          Condition="Exists('$(R2ModManCacheDir)')" />
+    <Message Importance="high" Text="Also overwrote r2modman's cache copy -> $(R2ModManCacheDir)" Condition="Exists('$(R2ModManCacheDir)')" />
+  </Target>
+
+</Project>
