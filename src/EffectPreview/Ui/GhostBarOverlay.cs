@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace StatPreview.Ui
+namespace EffectPreview.Ui
 {
     internal class GhostBarOverlay : MonoBehaviour
     {

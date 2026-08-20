@@ -22,7 +22,7 @@ Found a bug or have a suggestion? Please **[fill out this form](https://forms.gl
 
 ## Configuration
 
-Config file: `BepInEx/config/OnlyCook.StatPreview.cfg`.
+Config file: `BepInEx/config/OnlyCook.EffectPreview.cfg`.
 
 TODO: settings summary
 

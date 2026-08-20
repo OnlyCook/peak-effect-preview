@@ -3,24 +3,24 @@
 # Assemble a Thunderstore-ready release zip.
 #
 # manifest.json's version_number is the ONLY place to bump the version, this
-# script syncs it into StatPreview.csproj and PluginInfo.cs before building
+# script syncs it into EffectPreview.csproj and PluginInfo.cs before building
 # (CHANGELOG.md stays hand-maintained, this only warns if the new version
 # has no entry yet).
 #
-# Output: dist/StatPreview-<version>.zip with everything at the zip ROOT:
+# Output: dist/EffectPreview-<version>.zip with everything at the zip ROOT:
 #   manifest.json
 #   icon.png            (256x256)
 #   README.md
 #   CHANGELOG.md
 #   LICENSE             (if present)
-#   StatPreview.dll
+#   EffectPreview.dll
 #
-# r2modman installs the whole package into BepInEx/plugins/<Team>-StatPreview/,
+# r2modman installs the whole package into BepInEx/plugins/<Team>-EffectPreview/,
 # so a root-level DLL lands correctly and BepInEx loads it.
 #
 # Also writes a Nexus Mods distribution to
-# dist/nexus/StatPreview-<version>-nexus.zip, which is the same file set as
-# the Thunderstore zip but nested one level under an OnlyCook-StatPreview/
+# dist/nexus/EffectPreview-<version>-nexus.zip, which is the same file set as
+# the Thunderstore zip but nested one level under an OnlyCook-EffectPreview/
 # folder, so extracting it straight into BepInEx/plugins/ produces the
 # correct layout for a manual install.
 #
@@ -29,22 +29,22 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PKG="$REPO_ROOT/packaging"
-PROJ="$REPO_ROOT/src/StatPreview"
+PROJ="$REPO_ROOT/src/EffectPreview"
 DIST="$REPO_ROOT/dist"
-NEXUS_FOLDER="OnlyCook-StatPreview"
+NEXUS_FOLDER="OnlyCook-EffectPreview"
 
 # Version comes from manifest.json (single source of truth for the package).
 # Bump it there ONLY, everything below mirrors it, nothing else should ever be
 # hand-edited to a new version number.
 VERSION="$(grep -oE '"version_number"[[:space:]]*:[[:space:]]*"[^"]+"' "$PKG/manifest.json" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
 if [[ -z "$VERSION" ]]; then echo "ERROR: could not read version_number from manifest.json" >&2; exit 1; fi
-echo "Packaging StatPreview v$VERSION"
+echo "Packaging EffectPreview v$VERSION"
 
 # 0. Sync the version into every other place it's declared.
 echo "Syncing version $VERSION into csproj / PluginInfo.cs..."
 
 sed -i -E "s#(<Version>)[0-9]+\.[0-9]+\.[0-9]+(</Version>)#\1$VERSION\2#" \
-  "$PROJ/StatPreview.csproj"
+  "$PROJ/EffectPreview.csproj"
 
 sed -i -E "s#(public const string Version = \")[0-9]+\.[0-9]+\.[0-9]+(\";)#\1$VERSION\2#" \
   "$PROJ/PluginInfo.cs"
@@ -60,8 +60,8 @@ bash "$PKG/gen-readme.sh"
 
 # 1. Build the DLL (Release).
 echo "Building..."
-dotnet build "$PROJ/StatPreview.csproj" -c Release >/dev/null
-DLL="$PROJ/bin/Release/StatPreview.dll"
+dotnet build "$PROJ/EffectPreview.csproj" -c Release >/dev/null
+DLL="$PROJ/bin/Release/EffectPreview.dll"
 [[ -f "$DLL" ]] || { echo "ERROR: build output not found: $DLL" >&2; exit 1; }
 
 # 2. Validate the icon is exactly 256x256 (Thunderstore requirement).
@@ -79,11 +79,11 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 cp "$PKG/manifest.json" "$PKG/icon.png" "$PKG/README.md" "$PKG/CHANGELOG.md" "$STAGE/"
 [[ -f "$REPO_ROOT/LICENSE" ]] && cp "$REPO_ROOT/LICENSE" "$STAGE/LICENSE" || echo "NOTE: no LICENSE file yet (pick one before publishing)."
-cp "$DLL" "$STAGE/StatPreview.dll"
+cp "$DLL" "$STAGE/EffectPreview.dll"
 
 # 4. Zip (files at the root of the archive).
 mkdir -p "$DIST"
-OUT="$DIST/StatPreview-$VERSION.zip"
+OUT="$DIST/EffectPreview-$VERSION.zip"
 rm -f "$OUT"
 ( cd "$STAGE" && zip -r -q "$OUT" . )
 echo "Wrote $OUT"
@@ -97,7 +97,7 @@ NEXUS_STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE" "$NEXUS_STAGE"' EXIT
 mkdir -p "$NEXUS_STAGE/$NEXUS_FOLDER"
 cp -r "$STAGE/." "$NEXUS_STAGE/$NEXUS_FOLDER/"
-NEXUS_OUT="$NEXUS_DIST/StatPreview-$VERSION-nexus.zip"
+NEXUS_OUT="$NEXUS_DIST/EffectPreview-$VERSION-nexus.zip"
 rm -f "$NEXUS_OUT"
 ( cd "$NEXUS_STAGE" && zip -r -q "$NEXUS_OUT" . )
 echo "Wrote $NEXUS_OUT"

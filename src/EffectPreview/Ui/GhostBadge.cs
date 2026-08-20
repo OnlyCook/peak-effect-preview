@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace StatPreview.Ui
+namespace EffectPreview.Ui
 {
     // splits a real BarAffliction badge into a shrunk real part plus decrease/increase ghost siblings, shown independently rather than netted together
     internal class GhostBadge
@@ -107,7 +107,7 @@ namespace StatPreview.Ui
             internal static Strip CloneFrom(RectTransform sourceBadge, Transform insertAfter)
             {
                 GameObject go = Object.Instantiate(sourceBadge.gameObject, sourceBadge.parent);
-                go.name = sourceBadge.name + " (StatPreview Ghost)";
+                go.name = sourceBadge.name + " (EffectPreview Ghost)";
 
                 BarAffliction driver = go.GetComponent<BarAffliction>();
                 if (driver != null)

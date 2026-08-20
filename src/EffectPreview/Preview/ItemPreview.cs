@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Peak;
 
-namespace StatPreview.Preview
+namespace EffectPreview.Preview
 {
     internal class ItemPreview
     {

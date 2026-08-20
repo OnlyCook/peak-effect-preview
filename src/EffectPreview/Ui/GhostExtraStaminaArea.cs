@@ -2,7 +2,7 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace StatPreview.Ui
+namespace EffectPreview.Ui
 {
     // forces extraBar/extraBarOutline/icon visible+sized from LateUpdate so we always win over StaminaBar.Update(); see RESEARCH.md for the native lerp/masking details this mirrors
     internal class GhostExtraStaminaArea

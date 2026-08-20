@@ -2,7 +2,7 @@ using Peak;
 using Peak.Afflictions;
 using UnityEngine;
 
-namespace StatPreview.Preview
+namespace EffectPreview.Preview
 {
     // Action_CloneSelectedItem/Action_HealingGem costs depend on live aim state that changes every frame without the held item changing, so this recomputes every frame instead of going through ItemPreviewCalculator's once-per-item-change pipeline
     internal static class DynamicPetrifyPreview

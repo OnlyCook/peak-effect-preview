@@ -4,8 +4,8 @@
 
 ## For players
 
-- You can install the mod through r2modman as `Stat_Preview`,
-- On [Thunderstore](https://thunderstore.io/c/peak/p/OnlyCook/Stat_Preview/),
+- You can install the mod through r2modman as `Effect_Preview`,
+- On [Thunderstore](https://thunderstore.io/c/peak/p/OnlyCook/Effect_Preview/),
 - Or on Nexus Mods (TODO: link once published)
 
 ## For developers
@@ -14,7 +14,7 @@
 
 Build:
 ```bash
-cd src/StatPreview
-dotnet build -c Release                          # -> bin/Release/StatPreview.dll
+cd src/EffectPreview
+dotnet build -c Release                          # -> bin/Release/EffectPreview.dll
 dotnet build -c Release -p:DeployToProfile=true  # also copy into the r2modman profile
 ```

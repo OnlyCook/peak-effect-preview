@@ -26,7 +26,7 @@ Found a bug or have a suggestion? Please **[fill out this form](https://forms.gl
 
 ## Configuration
 
-Config file: `BepInEx/config/OnlyCook.StatPreview.cfg`.
+Config file: `BepInEx/config/OnlyCook.EffectPreview.cfg`.
 
 TODO: settings summary
 
@@ -40,8 +40,8 @@ TODO
 
 ## For players
 
-- You can install the mod through r2modman as `Stat_Preview`,
-- On [Thunderstore](https://thunderstore.io/c/peak/p/OnlyCook/Stat_Preview/),
+- You can install the mod through r2modman as `Effect_Preview`,
+- On [Thunderstore](https://thunderstore.io/c/peak/p/OnlyCook/Effect_Preview/),
 - Or on Nexus Mods (TODO: link once published)
 
 ## For developers
@@ -50,7 +50,7 @@ TODO
 
 Build:
 ```bash
-cd src/StatPreview
-dotnet build -c Release                          # -> bin/Release/StatPreview.dll
+cd src/EffectPreview
+dotnet build -c Release                          # -> bin/Release/EffectPreview.dll
 dotnet build -c Release -p:DeployToProfile=true  # also copy into the r2modman profile
 ```

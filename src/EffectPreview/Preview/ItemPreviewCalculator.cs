@@ -1,7 +1,7 @@
 using Peak;
 using Peak.Afflictions;
 
-namespace StatPreview.Preview
+namespace EffectPreview.Preview
 {
     internal static class ItemPreviewCalculator
     {

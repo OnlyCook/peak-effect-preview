@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace StatPreview.Preview
+namespace EffectPreview.Preview
 {
     internal class HeldItemPreviewTracker : MonoBehaviour
     {

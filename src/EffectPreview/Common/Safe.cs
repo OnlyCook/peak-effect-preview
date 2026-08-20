@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace StatPreview.Common
+namespace EffectPreview.Common
 {
     internal static class Safe
     {
@@ -46,7 +46,7 @@ namespace StatPreview.Common
                     string suffix = state.ConsecutiveFailures > 1
                         ? $" (failure #{state.ConsecutiveFailures}, further identical errors suppressed for {LogIntervalSeconds:0}s)"
                         : string.Empty;
-                    try { Plugin.Instance?.Log?.LogError($"StatPreview: {context} failed{suffix}: {e}"); }
+                    try { Plugin.Instance?.Log?.LogError($"EffectPreview: {context} failed{suffix}: {e}"); }
                     catch { }
                 }
                 return false;

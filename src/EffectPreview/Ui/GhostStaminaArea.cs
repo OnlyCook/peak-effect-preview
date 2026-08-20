@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace StatPreview.Ui
+namespace EffectPreview.Ui
 {
     // shrinks maxStaminaBar/staminaBar to make room for previewed status increases (poison etc), mirroring GetMaxStamina() = 1 - statusSum
     internal class GhostStaminaArea

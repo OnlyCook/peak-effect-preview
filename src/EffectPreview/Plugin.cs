@@ -2,7 +2,7 @@ using BepInEx;
 using HarmonyLib;
 using UnityEngine;
 
-namespace StatPreview
+namespace EffectPreview
 {
     [BepInPlugin(PluginInfo.Guid, PluginInfo.Name, PluginInfo.Version)]
     public class Plugin : BaseUnityPlugin
@@ -21,7 +21,7 @@ namespace StatPreview
             Cfg = new PluginConfig(Config);
             _harmony = new Harmony(PluginInfo.Guid);
 
-            GameObject go = new GameObject("StatPreview.Runtime");
+            GameObject go = new GameObject("EffectPreview.Runtime");
             DontDestroyOnLoad(go);
             go.AddComponent<Preview.HeldItemPreviewTracker>();
             go.AddComponent<Ui.GhostBarOverlay>();

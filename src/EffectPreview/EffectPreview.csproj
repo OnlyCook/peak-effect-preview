@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <AssemblyName>StatPreview</AssemblyName>
-    <Product>StatPreview</Product>
+    <AssemblyName>EffectPreview</AssemblyName>
+    <Product>EffectPreview</Product>
     <Version>0.1.0</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
@@ -37,10 +37,10 @@
   </ItemGroup>
 
   <Target Name="DeployToProfile" AfterTargets="Build" Condition="'$(DeployToProfile)' == 'true'">
-    <MakeDir Directories="$(ProfilePluginsDir)/OnlyCook-StatPreview" />
+    <MakeDir Directories="$(ProfilePluginsDir)/OnlyCook-EffectPreview" />
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll"
-          DestinationFolder="$(ProfilePluginsDir)/OnlyCook-StatPreview" />
-    <Message Importance="high" Text="Deployed $(AssemblyName).dll -> $(ProfilePluginsDir)/OnlyCook-StatPreview" />
+          DestinationFolder="$(ProfilePluginsDir)/OnlyCook-EffectPreview" />
+    <Message Importance="high" Text="Deployed $(AssemblyName).dll -> $(ProfilePluginsDir)/OnlyCook-EffectPreview" />
 
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll"
           DestinationFolder="$(R2ModManCacheDir)"

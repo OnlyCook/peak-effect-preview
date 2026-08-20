@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace StatPreview.Ui
+namespace EffectPreview.Ui
 {
     // independent translucent clone of a real status icon, shown only while the real amount is 0 - forcing the real icon active instead fights the game's own toggling, see RESEARCH.md
     internal class GhostIcon
@@ -19,7 +19,7 @@ namespace StatPreview.Ui
         internal static GhostIcon Create(Image template, Transform reparentTo = null)
         {
             GameObject go = Object.Instantiate(template.gameObject, template.transform.parent);
-            go.name = template.name + " (StatPreview Ghost)";
+            go.name = template.name + " (EffectPreview Ghost)";
 
             if (reparentTo != null)
             {

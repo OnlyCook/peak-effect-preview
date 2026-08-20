@@ -4,7 +4,7 @@
     <GameManagedDir Condition="'$(GameManagedDir)' == ''">$(HOME)/.local/share/Steam/steamapps/common/PEAK/PEAK_Data/Managed</GameManagedDir>
     <BepInExCoreDir Condition="'$(BepInExCoreDir)' == ''">$(HOME)/.config/r2modmanPlus-local/PEAK/profiles/Default/BepInEx/core</BepInExCoreDir>
     <ProfilePluginsDir Condition="'$(ProfilePluginsDir)' == ''">$(HOME)/.config/r2modmanPlus-local/PEAK/profiles/Default/BepInEx/plugins</ProfilePluginsDir>
-    <R2ModManCacheRoot Condition="'$(R2ModManCacheRoot)' == ''">$(HOME)/.config/r2modmanPlus-local/PEAK/cache/OnlyCook-StatPreview</R2ModManCacheRoot>
+    <R2ModManCacheRoot Condition="'$(R2ModManCacheRoot)' == ''">$(HOME)/.config/r2modmanPlus-local/PEAK/cache/OnlyCook-EffectPreview</R2ModManCacheRoot>
   </PropertyGroup>
 
   <Import Project="Directory.Build.props.local" Condition="Exists('Directory.Build.props.local')" />

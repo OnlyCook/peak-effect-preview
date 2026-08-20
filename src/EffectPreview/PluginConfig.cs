@@ -1,6 +1,6 @@
 using BepInEx.Configuration;
 
-namespace StatPreview
+namespace EffectPreview
 {
     internal class PluginConfig
     {

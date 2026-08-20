@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace StatPreview.Ui
+namespace EffectPreview.Ui
 {
     // clone of a real bar segment, positioned via world-space (see RESEARCH.md for why not anchoredPosition)
     internal class GhostSegment
@@ -19,7 +19,7 @@ namespace StatPreview.Ui
         internal static GhostSegment Create(Transform ghostRoot, RectTransform template)
         {
             GameObject go = Object.Instantiate(template.gameObject, ghostRoot);
-            go.name = template.name + " (StatPreview Ghost)";
+            go.name = template.name + " (EffectPreview Ghost)";
 
             RectTransform rtf = go.GetComponent<RectTransform>();
 

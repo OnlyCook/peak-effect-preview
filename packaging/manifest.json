@@ -1,7 +1,7 @@
 {
-    "name": "Stat_Preview",
+    "name": "Effect_Preview",
     "version_number": "0.1.0",
-    "website_url": "https://github.com/OnlyCook/peak-stat-preview",
+    "website_url": "https://github.com/OnlyCook/peak-effect-preview",
     "description": "See the hunger/stamina/other stat changes an item will cause, previewed on your UI bars while you're holding it",
     "dependencies": [
         "BepInEx-BepInExPack_PEAK-5.4.2403"

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace StatPreview.Ui
+namespace EffectPreview.Ui
 {
     // petrify's ghost grows leftward from a fixed right edge inside the extraBar hierarchy; see RESEARCH.md for the native lerp/masking details this mirrors
     internal class GhostPetrifyArea
