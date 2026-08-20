@@ -22,7 +22,7 @@ Client-sided, no other player needs it installed for this to work.
 
 ## Feedback & bug reports
 
-Found a bug or have a suggestion? Please **[fill out this form](https://forms.gle/4Vi7kp2c42A9FfSu5)** or send me an email at `theactualcooker@gmail.com`.
+Found a bug or have a suggestion? Please **[fill out this form](https://forms.gle/CWWfrk1dyKkycwN99)** or send me an email at `theactualcooker@gmail.com`.
 
 ## Configuration
 
