@@ -2,8 +2,7 @@ using UnityEngine;
 
 namespace StatPreview.Ui
 {
-    // shrinks maxStaminaBar/staminaBar to make room for status increases being previewed (poison etc), mirroring GetMaxStamina() = 1 - statusSum,
-    // using the same privately-tracked hard-override technique as GhostBadge
+    // shrinks maxStaminaBar/staminaBar to make room for previewed status increases (poison etc), mirroring GetMaxStamina() = 1 - statusSum
     internal class GhostStaminaArea
     {
         private const float LerpRate = 10f;
@@ -20,6 +19,9 @@ namespace StatPreview.Ui
             _maxRtf = maxStaminaBar;
             _curRtf = staminaBar;
         }
+
+        // Unity-null: maxStaminaBar/staminaBar can get destroyed and recreated by the game (observed on item pickup)
+        internal bool IsValid => _maxRtf != null && _curRtf != null;
 
         internal void Apply(float fullLocalWidth, float trueMaxStamina, float trueCurrentStamina, float totalPositiveDelta)
         {

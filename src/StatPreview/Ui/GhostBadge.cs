@@ -3,11 +3,7 @@ using UnityEngine.UI;
 
 namespace StatPreview.Ui
 {
-    // splits a real BarAffliction badge into a shrunk real part plus up to two
-    // ghost siblings in the same layout group (one for a decrease, one for an
-    // increase, shown independently rather than netted against each other),
-    // own state tracked privately since AddStamina's per-tick ChangeBar() keeps
-    // stomping BarAffliction.size
+    // splits a real BarAffliction badge into a shrunk real part plus decrease/increase ghost siblings, shown independently rather than netted together
     internal class GhostBadge
     {
         private const float LerpRate = 10f;
@@ -73,9 +69,7 @@ namespace StatPreview.Ui
                 }
             }
 
-            // the part of the increase that lands within the space the decrease already vacated doesn't need its own extra room
-            // only the pure removal (what's gone for good) and the pure increase (what grows beyond the current width)
-            // actually need separate space
+            // only the pure removal and the pure increase beyond it need their own separate room
             float overlap = Mathf.Min(shrinkMagnitude, increaseAmount);
             _decreaseGhost.Apply(fullLocalWidth * (shrinkMagnitude - overlap), lerpStep);
             _increaseGhost.Apply(fullLocalWidth * increaseAmount, lerpStep);
@@ -139,14 +133,17 @@ namespace StatPreview.Ui
 
             internal void Apply(float targetWidth, float lerpStep)
             {
-                if (targetWidth <= 0f)
+                float current = Rtf.gameObject.activeSelf ? Rtf.sizeDelta.x : 0f;
+
+                // lerp toward 0 before deactivating instead of snapping off instantly; a few px is already invisible
+                if (targetWidth <= 0f && current < 4f)
                 {
                     Hide();
                     return;
                 }
 
-                float current = Rtf.gameObject.activeSelf ? Rtf.sizeDelta.x : 0f;
-                Rtf.sizeDelta = new Vector2(Mathf.Lerp(current, targetWidth, lerpStep), Rtf.sizeDelta.y);
+                float newWidth = Mathf.Lerp(current, Mathf.Max(0f, targetWidth), lerpStep);
+                Rtf.sizeDelta = new Vector2(newWidth, Rtf.sizeDelta.y);
                 Rtf.gameObject.SetActive(true);
             }
 

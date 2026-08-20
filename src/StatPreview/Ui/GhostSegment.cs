@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 namespace StatPreview.Ui
 {
-    // positions from GetWorldCorners instead of anchors/pivot, dodges the layout group and mask that live under extraBarStamina
+    // clone of a real bar segment, positioned via world-space (see RESEARCH.md for why not anchoredPosition)
     internal class GhostSegment
     {
         private readonly RectTransform _rtf;
@@ -15,47 +15,49 @@ namespace StatPreview.Ui
 
         internal bool IsValid => _rtf != null;
 
-        internal static GhostSegment Create(Transform ghostRoot, Color tint)
+        // clones the real fill's sprite/look instead of a flat rectangle, tinted translucent to read as a preview
+        internal static GhostSegment Create(Transform ghostRoot, RectTransform template)
         {
-            GameObject go = new GameObject("StatPreview.Ghost", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(ghostRoot, false);
+            GameObject go = Object.Instantiate(template.gameObject, ghostRoot);
+            go.name = template.name + " (StatPreview Ghost)";
 
             RectTransform rtf = go.GetComponent<RectTransform>();
-            rtf.anchorMin = new Vector2(0.5f, 0.5f);
-            rtf.anchorMax = new Vector2(0.5f, 0.5f);
-            rtf.pivot = Vector2.zero;
 
-            go.GetComponent<Image>().color = tint;
+            // strip a cloned BarAffliction's own icon child, or it renders a second copy next to the real one
+            BarAffliction driver = go.GetComponent<BarAffliction>();
+            if (driver != null)
+            {
+                if (driver.icon != null)
+                {
+                    driver.icon.gameObject.SetActive(false);
+                }
+                Object.Destroy(driver);
+            }
+
+            foreach (Image image in go.GetComponentsInChildren<Image>(includeInactive: true))
+            {
+                Color c = Color.Lerp(image.color, Color.white, 0.4f);
+                c.a *= 0.65f;
+                image.color = c;
+            }
+
             go.SetActive(false);
             return new GhostSegment(rtf);
         }
 
-        // fixedLeftEdge: true if the bar grows rightward (left edge stays put)
-        internal void Apply(Vector3[] corners, float fullWorldWidth, float delta, bool fixedLeftEdge)
+        // pivotWorldX places the clone's own (inherited) pivot point at that world X
+        internal void Apply(float pivotWorldX, float width)
         {
-            if (Mathf.Approximately(delta, 0f) || corners == null)
+            if (width <= 0f)
             {
                 Hide();
                 return;
             }
 
-            float deltaWorldWidth = fullWorldWidth * delta;
-
-            float currentFreeEdgeX = fixedLeftEdge ? corners[2].x : corners[0].x;
-            float newFreeEdgeX = fixedLeftEdge ? currentFreeEdgeX + deltaWorldWidth : currentFreeEdgeX - deltaWorldWidth;
-
-            float stripLeftX = Mathf.Min(currentFreeEdgeX, newFreeEdgeX);
-            float stripRightX = Mathf.Max(currentFreeEdgeX, newFreeEdgeX);
-
-            Vector3 bottomLeft = new Vector3(stripLeftX, corners[0].y, corners[0].z);
-            Vector3 topRight = new Vector3(stripRightX, corners[2].y, corners[2].z);
-
-            Transform parent = _rtf.parent;
-            Vector3 localBottomLeft = parent.InverseTransformPoint(bottomLeft);
-            Vector3 localTopRight = parent.InverseTransformPoint(topRight);
-
-            _rtf.anchoredPosition = new Vector2(localBottomLeft.x, localBottomLeft.y);
-            _rtf.sizeDelta = new Vector2(localTopRight.x - localBottomLeft.x, localTopRight.y - localBottomLeft.y);
+            Vector3 pos = _rtf.position;
+            pos.x = pivotWorldX;
+            _rtf.position = pos;
+            _rtf.sizeDelta = new Vector2(width, _rtf.sizeDelta.y);
             _rtf.gameObject.SetActive(true);
         }
 

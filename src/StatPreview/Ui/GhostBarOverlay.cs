@@ -5,14 +5,13 @@ namespace StatPreview.Ui
 {
     internal class GhostBarOverlay : MonoBehaviour
     {
-        private static readonly Color ExtraStaminaGhostTint = new Color(1f, 0.9f, 0.4f, 0.5f);
-
         private StaminaBar _bar;
         private RectTransform _fullBar;
         private bool _built;
 
         private readonly Dictionary<CharacterAfflictions.STATUSTYPE, GhostBadge> _statusGhosts = new Dictionary<CharacterAfflictions.STATUSTYPE, GhostBadge>();
-        private GhostSegment _extraStaminaGhost;
+        private GhostExtraStaminaArea _extraStaminaArea;
+        private GhostPetrifyArea _petrifyArea;
         private GhostStaminaArea _staminaArea;
 
         private void LateUpdate()
@@ -26,7 +25,9 @@ namespace StatPreview.Ui
             if (_built && IsStale())
             {
                 _statusGhosts.Clear();
-                _extraStaminaGhost = null;
+                _extraStaminaArea = null;
+                _petrifyArea = null;
+                _staminaArea = null;
                 _built = false;
             }
 
@@ -50,7 +51,15 @@ namespace StatPreview.Ui
                     return true;
                 }
             }
-            return _extraStaminaGhost != null && !_extraStaminaGhost.IsValid;
+            if (_extraStaminaArea != null && !_extraStaminaArea.IsValid)
+            {
+                return true;
+            }
+            if (_petrifyArea != null && !_petrifyArea.IsValid)
+            {
+                return true;
+            }
+            return _staminaArea != null && !_staminaArea.IsValid;
         }
 
         private bool TryGetBar()
@@ -77,9 +86,14 @@ namespace StatPreview.Ui
                 _statusGhosts[affliction.afflictionType] = GhostBadge.Create(affliction);
             }
 
-            if (_extraStaminaGhost == null && _bar.extraBarStamina != null)
+            if (_extraStaminaArea == null && _bar.extraBar != null && _bar.extraBarStamina != null && _bar.extraBarOutline != null && _bar.extraStaminaIcon != null)
             {
-                _extraStaminaGhost = GhostSegment.Create(_bar.transform, ExtraStaminaGhostTint);
+                _extraStaminaArea = new GhostExtraStaminaArea(_bar.extraBar, _bar.extraBarStamina, _bar.extraBarOutline, _bar.extraStaminaIcon);
+            }
+
+            if (_petrifyArea == null && _bar.petrifyAffliction != null && _bar.petrifyAffliction.rtf != null)
+            {
+                _petrifyArea = new GhostPetrifyArea(_bar.petrifyAffliction);
             }
 
             if (_staminaArea == null && _bar.maxStaminaBar != null && _bar.staminaBar != null)
@@ -116,23 +130,17 @@ namespace StatPreview.Ui
 
             _staminaArea?.Apply(fullLocalWidth, character.GetMaxStamina(), character.data.currentStamina, totalIncrease);
 
-            if (_extraStaminaGhost != null)
-            {
-                if (Mathf.Approximately(preview.ExtraStaminaDelta, 0f))
-                {
-                    _extraStaminaGhost.Hide();
-                }
-                else
-                {
-                    Vector3[] fullBarCorners = new Vector3[4];
-                    _fullBar.GetWorldCorners(fullBarCorners);
-                    float fullWorldWidth = fullBarCorners[2].x - fullBarCorners[0].x;
+            float petrifyDelta = preview.PetrifyDelta + Preview.DynamicPetrifyPreview.Compute(preview, character);
+            float petrifyRoom = Mathf.Max(0f, 1f - character.data.petrifyAmount * 0.01f);
+            petrifyDelta = Mathf.Max(0f, Mathf.Min(petrifyDelta, petrifyRoom));
 
-                    Vector3[] corners = new Vector3[4];
-                    _bar.extraBarStamina.GetWorldCorners(corners);
-                    _extraStaminaGhost.Apply(corners, fullWorldWidth, preview.ExtraStaminaDelta, fixedLeftEdge: true);
-                }
-            }
+            bool petrifyActive = _bar.petrifyAffliction != null && _bar.petrifyAffliction.gameObject.activeSelf;
+
+            // petrify first so its just-updated DisplayedDelta (not last frame's) gates the bonus-stamina outline
+            _petrifyArea?.Apply(fullLocalWidth, petrifyDelta, petrifyActive);
+            bool petrifyGhostVisible = (_petrifyArea?.DisplayedDelta ?? 0f) > 0.002f;
+
+            _extraStaminaArea?.Apply(fullLocalWidth, character.data.extraStamina, preview.ExtraStaminaDelta, character.data.petrifyAmount, petrifyActive, petrifyDelta, petrifyGhostVisible);
         }
 
         private void HideAll()
@@ -141,7 +149,8 @@ namespace StatPreview.Ui
             {
                 badge.Hide();
             }
-            _extraStaminaGhost?.Hide();
+            _extraStaminaArea?.Hide();
+            _petrifyArea?.Hide();
             _staminaArea?.Release();
         }
     }

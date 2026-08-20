@@ -1,15 +1,20 @@
 using System.Collections.Generic;
+using Peak;
 
 namespace StatPreview.Preview
 {
     internal class ItemPreview
     {
-        // increases and decreases on the same status are kept separate, not netted,
-        // so e.g. "clears all current drowsy" and "adds 25% drowsy later" both show
+        // increases and decreases on the same status are kept separate, not netted, so both show
         internal readonly Dictionary<CharacterAfflictions.STATUSTYPE, float> StatusIncreases = new Dictionary<CharacterAfflictions.STATUSTYPE, float>();
         internal readonly Dictionary<CharacterAfflictions.STATUSTYPE, float> StatusDecreases = new Dictionary<CharacterAfflictions.STATUSTYPE, float>();
 
         internal float ExtraStaminaDelta;
+
+        // flat petrify gain (Action_ModifyStatus/Action_SuperJumpAmulet); the aim-dependent actions below are just cached refs for DynamicPetrifyPreview to recompute each frame
+        internal float PetrifyDelta;
+        internal Action_CloneSelectedItem CloneItemAction;
+        internal Action_HealingGem HealingGemAction;
 
         internal void AddStatus(CharacterAfflictions.STATUSTYPE type, float amount)
         {
