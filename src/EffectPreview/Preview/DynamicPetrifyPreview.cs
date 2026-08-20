@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Peak;
 using Peak.Afflictions;
 using UnityEngine;
@@ -7,6 +8,43 @@ namespace EffectPreview.Preview
     // Action_CloneSelectedItem/Action_HealingGem costs depend on live aim state that changes every frame without the held item changing, so this recomputes every frame instead of going through ItemPreviewCalculator's once-per-item-change pipeline
     internal static class DynamicPetrifyPreview
     {
+        // mirrors Affliction_HealAll.statusesToHeal's order - the pool is spent on statuses in this exact sequence
+        private static readonly CharacterAfflictions.STATUSTYPE[] HealOrder =
+        {
+            CharacterAfflictions.STATUSTYPE.Injury,
+            CharacterAfflictions.STATUSTYPE.Spores,
+            CharacterAfflictions.STATUSTYPE.Poison,
+            CharacterAfflictions.STATUSTYPE.Cold,
+            CharacterAfflictions.STATUSTYPE.Hot,
+            CharacterAfflictions.STATUSTYPE.Drowsy
+        };
+
+        // RunAction() only ever heals the user themself when pressed directly (feeding a friend is the secondary-only path, already excluded from preview), so this always targets localCharacter regardless of who's being aimed at
+        internal static void ComputeHealBreakdown(ItemPreview preview, Character localCharacter, Dictionary<CharacterAfflictions.STATUSTYPE, float> buffer)
+        {
+            Action_HealingGem action = preview.HealingGemAction;
+            if (action == null || action.healingAffliction == null || localCharacter == null)
+            {
+                return;
+            }
+
+            float remaining = action.healingAffliction.maxHealing;
+            foreach (CharacterAfflictions.STATUSTYPE type in HealOrder)
+            {
+                if (remaining <= 0f)
+                {
+                    break;
+                }
+                float current = localCharacter.refs.afflictions.GetCurrentStatus(type);
+                if (current > 0f)
+                {
+                    float heal = Mathf.Min(current, remaining);
+                    buffer[type] = heal;
+                    remaining -= heal;
+                }
+            }
+        }
+
         internal static float Compute(ItemPreview preview, Character localCharacter)
         {
             float delta = 0f;

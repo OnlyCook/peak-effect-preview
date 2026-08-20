@@ -16,6 +16,16 @@ namespace EffectPreview.Preview
         internal Action_CloneSelectedItem CloneItemAction;
         internal Action_HealingGem HealingGemAction;
 
+        // Action_WarpToBiome(segmentToWarpTo=Void) - MapHandler.GoToVoidRoutine clears all curable statuses (not Curse/Petrify) and knocks Petrify down by a flat amount, live status values decide the actual widths so this is just intent + the fixed reduction
+        internal bool ClearsCurableStatusOnUse;
+        internal float PetrifyReductionOnUse;
+
+        // Action_ApplyInfiniteStamina (Scout's Ambition, Big Lollypop) - just an on/off, no magnitude to compute
+        internal bool GrantsInfiniteStaminaOnUse;
+
+        // Affliction_Invincibility (Fortified Milk, Scout's Tenacity) - just an on/off, no magnitude to compute
+        internal bool GrantsInvincibilityOnUse;
+
         internal void AddStatus(CharacterAfflictions.STATUSTYPE type, float amount)
         {
             if (amount > 0f)

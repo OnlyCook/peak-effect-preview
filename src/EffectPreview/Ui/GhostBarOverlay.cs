@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Peak.Afflictions;
 using UnityEngine;
 
 namespace EffectPreview.Ui
@@ -9,10 +10,27 @@ namespace EffectPreview.Ui
         private RectTransform _fullBar;
         private bool _built;
 
+        // mirrors CharacterAfflictions.StatusIsCurable(type, isCurseCurable: false, isPetrifyCurable: false) - what GoToVoidRoutine's ClearAllStatus() actually zeroes out
+        private static readonly HashSet<CharacterAfflictions.STATUSTYPE> CurableStatuses = new HashSet<CharacterAfflictions.STATUSTYPE>
+        {
+            CharacterAfflictions.STATUSTYPE.Injury,
+            CharacterAfflictions.STATUSTYPE.Hunger,
+            CharacterAfflictions.STATUSTYPE.Cold,
+            CharacterAfflictions.STATUSTYPE.Poison,
+            CharacterAfflictions.STATUSTYPE.Drowsy,
+            CharacterAfflictions.STATUSTYPE.Hot,
+            CharacterAfflictions.STATUSTYPE.Spores,
+            CharacterAfflictions.STATUSTYPE.Web,
+            CharacterAfflictions.STATUSTYPE.FlyTrap
+        };
+
         private readonly Dictionary<CharacterAfflictions.STATUSTYPE, GhostBadge> _statusGhosts = new Dictionary<CharacterAfflictions.STATUSTYPE, GhostBadge>();
+        private readonly Dictionary<CharacterAfflictions.STATUSTYPE, float> _dynamicHealBreakdown = new Dictionary<CharacterAfflictions.STATUSTYPE, float>();
         private GhostExtraStaminaArea _extraStaminaArea;
         private GhostPetrifyArea _petrifyArea;
         private GhostStaminaArea _staminaArea;
+        private GhostRainbowStamina _rainbowArea;
+        private GhostInvincibilityShield _shieldArea;
 
         private void LateUpdate()
         {
@@ -28,6 +46,8 @@ namespace EffectPreview.Ui
                 _extraStaminaArea = null;
                 _petrifyArea = null;
                 _staminaArea = null;
+                _rainbowArea = null;
+                _shieldArea = null;
                 _built = false;
             }
 
@@ -56,6 +76,14 @@ namespace EffectPreview.Ui
                 return true;
             }
             if (_petrifyArea != null && !_petrifyArea.IsValid)
+            {
+                return true;
+            }
+            if (_rainbowArea != null && !_rainbowArea.IsValid)
+            {
+                return true;
+            }
+            if (_shieldArea != null && !_shieldArea.IsValid)
             {
                 return true;
             }
@@ -101,6 +129,16 @@ namespace EffectPreview.Ui
                 _staminaArea = new GhostStaminaArea(_bar.maxStaminaBar, _bar.staminaBar);
             }
 
+            if (_rainbowArea == null && _bar.rainbowStamina != null)
+            {
+                _rainbowArea = GhostRainbowStamina.Create(_bar.rainbowStamina);
+            }
+
+            if (_shieldArea == null && _bar.shield != null)
+            {
+                _shieldArea = GhostInvincibilityShield.Create(_bar.shield);
+            }
+
             _built = true;
         }
 
@@ -116,12 +154,24 @@ namespace EffectPreview.Ui
             Preview.ItemPreview preview = Preview.HeldItemPreviewTracker.Instance.Current;
             float fullLocalWidth = _fullBar.sizeDelta.x;
 
+            _dynamicHealBreakdown.Clear();
+            if (preview.HealingGemAction != null)
+            {
+                Preview.DynamicPetrifyPreview.ComputeHealBreakdown(preview, character, _dynamicHealBreakdown);
+            }
+
             float totalIncrease = 0f;
             foreach (KeyValuePair<CharacterAfflictions.STATUSTYPE, GhostBadge> entry in _statusGhosts)
             {
                 preview.StatusIncreases.TryGetValue(entry.Key, out float increase);
                 preview.StatusDecreases.TryGetValue(entry.Key, out float decrease);
+                _dynamicHealBreakdown.TryGetValue(entry.Key, out float healDecrease);
+                decrease += healDecrease;
                 float live = character.refs.afflictions.GetCurrentStatus(entry.Key);
+                if (preview.ClearsCurableStatusOnUse && CurableStatuses.Contains(entry.Key))
+                {
+                    decrease = live;
+                }
                 entry.Value.Apply(fullLocalWidth, live, decrease, increase);
 
                 float shrinkMagnitude = Mathf.Min(decrease, live);
@@ -134,13 +184,21 @@ namespace EffectPreview.Ui
             float petrifyRoom = Mathf.Max(0f, 1f - character.data.petrifyAmount * 0.01f);
             petrifyDelta = Mathf.Max(0f, Mathf.Min(petrifyDelta, petrifyRoom));
 
+            float currentPetrifyFraction = character.data.petrifyAmount * 0.01f;
+            float petrifyShrinkDelta = Mathf.Max(0f, preview.PetrifyReductionOnUse);
+
             bool petrifyActive = _bar.petrifyAffliction != null && _bar.petrifyAffliction.gameObject.activeSelf;
 
             // petrify first so its just-updated DisplayedDelta (not last frame's) gates the bonus-stamina outline
-            _petrifyArea?.Apply(fullLocalWidth, petrifyDelta, petrifyActive);
+            _petrifyArea?.Apply(fullLocalWidth, petrifyDelta, petrifyShrinkDelta, currentPetrifyFraction, petrifyActive);
             bool petrifyGhostVisible = (_petrifyArea?.DisplayedDelta ?? 0f) > 0.002f;
 
             _extraStaminaArea?.Apply(fullLocalWidth, character.data.extraStamina, preview.ExtraStaminaDelta, character.data.petrifyAmount, petrifyActive, petrifyDelta, petrifyGhostVisible);
+
+            _rainbowArea?.Apply(preview.GrantsInfiniteStaminaOnUse, character.infiniteStam);
+            // CharacterData.isInvincible is internal to the game assembly, so this checks the same thing through the public affliction API instead
+            bool realInvincible = character.refs.afflictions.HasAfflictionType(Affliction.AfflictionType.Invincibility, out _);
+            _shieldArea?.Apply(preview.GrantsInvincibilityOnUse, realInvincible);
         }
 
         private void HideAll()
@@ -152,6 +210,8 @@ namespace EffectPreview.Ui
             _extraStaminaArea?.Hide();
             _petrifyArea?.Hide();
             _staminaArea?.Release();
+            _rainbowArea?.Hide();
+            _shieldArea?.Hide();
         }
     }
 }

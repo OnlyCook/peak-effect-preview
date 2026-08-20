@@ -95,6 +95,18 @@ namespace EffectPreview.Preview
                 else if (action is Action_HealingGem healingGem)
                 {
                     preview.HealingGemAction = healingGem;
+                    AddAffliction(preview, healingGem.invincibilityAffliction);
+                }
+                else if (action is Action_ApplyInfiniteStamina)
+                {
+                    preview.GrantsInfiniteStaminaOnUse = true;
+                }
+                // GoToVoidRoutine(clearStatus: true): clears every curable status but Curse, and only knocks Petrify down 20 rather than clearing it. The item itself is also deleted outright by DeleteScoutsHonorFromLocalCharacter (a tag-based removal, not an Action_Consume component), so it costs the item's carry weight same as a normal consumable
+                else if (action is Action_WarpToBiome warpToBiome && warpToBiome.segmentToWarpTo == Segment.Void)
+                {
+                    preview.ClearsCurableStatusOnUse = true;
+                    preview.PetrifyReductionOnUse += 0.2f;
+                    consumed = true;
                 }
             }
 
@@ -115,9 +127,23 @@ namespace EffectPreview.Preview
                 preview.AddStatus(CharacterAfflictions.STATUSTYPE.Drowsy, -0.5f);
                 preview.AddStatus(CharacterAfflictions.STATUSTYPE.Drowsy, fasterBoi.drowsyOnEnd);
             }
-            else if (affliction is Affliction_InfiniteStamina infiniteStamina && infiniteStamina.drowsyAffliction != null)
+            else if (affliction is Affliction_InfiniteStamina infiniteStamina)
             {
-                AddAffliction(preview, infiniteStamina.drowsyAffliction);
+                // Big Lollypop grants this through Action_ApplyAffliction rather than the dedicated Action_ApplyInfiniteStamina action
+                preview.GrantsInfiniteStaminaOnUse = true;
+                if (infiniteStamina.drowsyAffliction != null)
+                {
+                    AddAffliction(preview, infiniteStamina.drowsyAffliction);
+                }
+            }
+            // Scout's Ambition applies this wrapper instead of Affliction_InfiniteStamina directly - it periodically re-grants real Affliction_InfiniteStamina to everyone (including the wearer) within radius, every 0.5s, for as long as it's active
+            else if (affliction is Affliction_RadiateInfiniteStam)
+            {
+                preview.GrantsInfiniteStaminaOnUse = true;
+            }
+            else if (affliction is Affliction_Invincibility)
+            {
+                preview.GrantsInvincibilityOnUse = true;
             }
             else if (affliction is Affliction_AdjustDrowsyOverTime drowsyOverTime)
             {

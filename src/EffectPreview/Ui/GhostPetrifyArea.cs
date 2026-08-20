@@ -18,29 +18,61 @@ namespace EffectPreview.Ui
 
         private readonly RectTransform _petrifyRtf;
         private readonly GhostSegment _ghost;
+        private readonly GhostSegment _decreaseGhost;
         private readonly GhostIcon _icon;
         private readonly Vector3[] _cornerBuffer = new Vector3[4];
 
         private float _displayedDelta;
         private float _timeSinceTargetZero;
 
+        // decrease-ghost overlay width, grows from the real segment's own (fixed) left edge rightward - see Apply
+        private float _displayedShrinkWidth;
+
         internal GhostPetrifyArea(BarAffliction petrifyAffliction)
         {
             _petrifyRtf = petrifyAffliction.rtf;
             _ghost = GhostSegment.Create(_petrifyRtf.parent, _petrifyRtf);
+            _decreaseGhost = GhostSegment.Create(_petrifyRtf.parent, _petrifyRtf);
             _icon = petrifyAffliction.icon != null ? GhostIcon.Create(petrifyAffliction.icon, _petrifyRtf.parent) : null;
         }
 
-        internal bool IsValid => _petrifyRtf != null && _ghost.IsValid && (_icon == null || _icon.IsValid);
+        internal bool IsValid => _petrifyRtf != null && _ghost.IsValid && _decreaseGhost.IsValid && (_icon == null || _icon.IsValid);
 
         // lets GhostExtraStaminaArea wait for this to actually fade before reclaiming the space petrify's border expansion held
         internal float DisplayedDelta => _displayedDelta;
 
         // realPetrifyActive: real segment/icon already shown natively, so only that one should be visible
-        internal void Apply(float fullLocalWidth, float delta, bool realPetrifyActive)
+        // shrinkDelta/currentPetrifyFraction preview a reduction (e.g. Scout's Honor's Nadir warp): a single lerped value (_displayedShrinkWidth) drives both sides at once, so the ghost's growth and the real segment's shrink are exact complements with no gap or overlap between them - the ghost's own left edge stays fixed at the real segment's original (unshrunk) left edge the whole time, so it reads as "eating into" the segment rather than sliding
+        internal void Apply(float fullLocalWidth, float delta, float shrinkDelta, float currentPetrifyFraction, bool realPetrifyActive)
         {
-            float targetDelta = delta > 0f ? delta : 0f;
             float lerpStep = Mathf.Min(Time.deltaTime * LerpRate, MaxLerpStep);
+
+            float shrinkMagnitude = Mathf.Clamp(shrinkDelta, 0f, currentPetrifyFraction);
+            float shrinkTargetWidth = fullLocalWidth * shrinkMagnitude;
+            _displayedShrinkWidth = Mathf.Lerp(_displayedShrinkWidth, shrinkTargetWidth, lerpStep);
+
+            if (shrinkMagnitude > HiddenThreshold || _displayedShrinkWidth > 0.5f)
+            {
+                float fullRealWidth = fullLocalWidth * currentPetrifyFraction;
+                float remainingRealWidth = Mathf.Max(0f, fullRealWidth - _displayedShrinkWidth);
+
+                _petrifyRtf.gameObject.SetActive(true);
+                _petrifyRtf.sizeDelta = new Vector2(remainingRealWidth, _petrifyRtf.sizeDelta.y);
+
+                // right edge is a fixed pivot-anchored point, unaffected by the sizeDelta change just above, so this stays the original left edge regardless of how far along the shrink is
+                _petrifyRtf.GetWorldCorners(_cornerBuffer);
+                float fixedRightEdgeWorldX = _cornerBuffer[2].x;
+                float originalLeftWorldX = fixedRightEdgeWorldX - fullRealWidth;
+
+                _decreaseGhost.Apply(originalLeftWorldX + _displayedShrinkWidth, _displayedShrinkWidth);
+            }
+            else
+            {
+                _displayedShrinkWidth = 0f;
+                _decreaseGhost.Hide();
+            }
+
+            float targetDelta = delta > 0f ? delta : 0f;
             _displayedDelta = Mathf.Lerp(_displayedDelta, targetDelta, lerpStep);
 
             _timeSinceTargetZero = targetDelta > 0f ? 0f : _timeSinceTargetZero + Time.deltaTime;
@@ -81,7 +113,9 @@ namespace EffectPreview.Ui
         {
             _displayedDelta = 0f;
             _timeSinceTargetZero = IconHideDelay;
+            _displayedShrinkWidth = 0f;
             _ghost.Hide();
+            _decreaseGhost.Hide();
             _icon?.Hide();
         }
     }
