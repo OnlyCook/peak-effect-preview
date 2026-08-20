@@ -32,7 +32,7 @@ namespace EffectPreview.Ui
         {
             _petrifyRtf = petrifyAffliction.rtf;
             _ghost = GhostSegment.Create(_petrifyRtf.parent, _petrifyRtf);
-            _decreaseGhost = GhostSegment.Create(_petrifyRtf.parent, _petrifyRtf);
+            _decreaseGhost = GhostSegment.Create(_petrifyRtf.parent, _petrifyRtf, isRemoval: true);
             _icon = petrifyAffliction.icon != null ? GhostIcon.Create(petrifyAffliction.icon, _petrifyRtf.parent) : null;
         }
 

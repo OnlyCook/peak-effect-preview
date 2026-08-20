@@ -7,16 +7,23 @@ namespace EffectPreview.Ui
     internal class GhostSegment
     {
         private readonly RectTransform _rtf;
+        private readonly Image[] _images;
+        private readonly float[] _baseAlphas;
+        private readonly bool _isRemoval;
 
-        private GhostSegment(RectTransform rtf)
+        private GhostSegment(RectTransform rtf, Image[] images, float[] baseAlphas, bool isRemoval)
         {
             _rtf = rtf;
+            _images = images;
+            _baseAlphas = baseAlphas;
+            _isRemoval = isRemoval;
         }
 
         internal bool IsValid => _rtf != null;
 
         // clones the real fill's sprite/look instead of a flat rectangle, tinted translucent to read as a preview
-        internal static GhostSegment Create(Transform ghostRoot, RectTransform template)
+        // isRemoval: pulses alpha subtly rather than holding a flat tint, so a "this will be removed" ghost doesn't read identically to a "this will be added" one
+        internal static GhostSegment Create(Transform ghostRoot, RectTransform template, bool isRemoval = false)
         {
             GameObject go = Object.Instantiate(template.gameObject, ghostRoot);
             go.name = template.name + " (EffectPreview Ghost)";
@@ -34,15 +41,18 @@ namespace EffectPreview.Ui
                 Object.Destroy(driver);
             }
 
-            foreach (Image image in go.GetComponentsInChildren<Image>(includeInactive: true))
+            Image[] images = go.GetComponentsInChildren<Image>(includeInactive: true);
+            float[] baseAlphas = new float[images.Length];
+            for (int i = 0; i < images.Length; i++)
             {
-                Color c = Color.Lerp(image.color, Color.white, 0.4f);
+                Color c = Color.Lerp(images[i].color, Color.white, 0.4f);
                 c.a *= 0.65f;
-                image.color = c;
+                images[i].color = c;
+                baseAlphas[i] = c.a;
             }
 
             go.SetActive(false);
-            return new GhostSegment(rtf);
+            return new GhostSegment(rtf, images, baseAlphas, isRemoval);
         }
 
         // pivotWorldX places the clone's own (inherited) pivot point at that world X
@@ -59,6 +69,11 @@ namespace EffectPreview.Ui
             _rtf.position = pos;
             _rtf.sizeDelta = new Vector2(width, _rtf.sizeDelta.y);
             _rtf.gameObject.SetActive(true);
+
+            if (_isRemoval)
+            {
+                RemovalPulse.Apply(_images, _baseAlphas);
+            }
         }
 
         internal void Hide()

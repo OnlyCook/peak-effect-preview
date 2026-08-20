@@ -29,7 +29,7 @@ namespace EffectPreview.Ui
         internal static GhostBadge Create(BarAffliction realAffliction)
         {
             RectTransform realBadge = realAffliction.rtf;
-            Strip decreaseGhost = Strip.CloneFrom(realBadge, realBadge);
+            Strip decreaseGhost = Strip.CloneFrom(realBadge, realBadge, isRemoval: true);
             Strip increaseGhost = Strip.CloneFrom(realBadge, decreaseGhost.Rtf);
 
             GameObject realIcon = realAffliction.icon != null ? realAffliction.icon.gameObject : null;
@@ -93,18 +93,25 @@ namespace EffectPreview.Ui
         }
 
         // one cloned, tinted badge sibling whose width is driven independently
+        // isRemoval pulses alpha subtly (via the shared, globally-synced RemovalPulse clock) so a decrease reads differently from an increase
         private readonly struct Strip
         {
             internal readonly RectTransform Rtf;
+            private readonly Image[] _images;
+            private readonly float[] _baseAlphas;
+            private readonly bool _isRemoval;
 
-            private Strip(RectTransform rtf)
+            private Strip(RectTransform rtf, Image[] images, float[] baseAlphas, bool isRemoval)
             {
                 Rtf = rtf;
+                _images = images;
+                _baseAlphas = baseAlphas;
+                _isRemoval = isRemoval;
             }
 
             internal bool IsValid => Rtf != null;
 
-            internal static Strip CloneFrom(RectTransform sourceBadge, Transform insertAfter)
+            internal static Strip CloneFrom(RectTransform sourceBadge, Transform insertAfter, bool isRemoval = false)
             {
                 GameObject go = Object.Instantiate(sourceBadge.gameObject, sourceBadge.parent);
                 go.name = sourceBadge.name + " (EffectPreview Ghost)";
@@ -119,16 +126,19 @@ namespace EffectPreview.Ui
                     Object.Destroy(driver);
                 }
 
-                foreach (Image image in go.GetComponentsInChildren<Image>(includeInactive: true))
+                Image[] images = go.GetComponentsInChildren<Image>(includeInactive: true);
+                float[] baseAlphas = new float[images.Length];
+                for (int i = 0; i < images.Length; i++)
                 {
-                    Color c = Color.Lerp(image.color, Color.white, 0.4f);
+                    Color c = Color.Lerp(images[i].color, Color.white, 0.4f);
                     c.a = 0.65f;
-                    image.color = c;
+                    images[i].color = c;
+                    baseAlphas[i] = c.a;
                 }
 
                 go.transform.SetSiblingIndex(insertAfter.GetSiblingIndex() + 1);
                 go.SetActive(false);
-                return new Strip(go.GetComponent<RectTransform>());
+                return new Strip(go.GetComponent<RectTransform>(), images, baseAlphas, isRemoval);
             }
 
             internal void Apply(float targetWidth, float lerpStep)
@@ -145,6 +155,11 @@ namespace EffectPreview.Ui
                 float newWidth = Mathf.Lerp(current, Mathf.Max(0f, targetWidth), lerpStep);
                 Rtf.sizeDelta = new Vector2(newWidth, Rtf.sizeDelta.y);
                 Rtf.gameObject.SetActive(true);
+
+                if (_isRemoval)
+                {
+                    RemovalPulse.Apply(_images, _baseAlphas);
+                }
             }
 
             internal void Hide()

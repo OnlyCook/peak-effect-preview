@@ -31,6 +31,8 @@ namespace EffectPreview.Ui
         private GhostStaminaArea _staminaArea;
         private GhostRainbowStamina _rainbowArea;
         private GhostInvincibilityShield _shieldArea;
+        private BorderWarningBlink _passOutBorderBlink;
+        private BorderWarningBlink _petrifyDeathBorderBlink;
 
         private void LateUpdate()
         {
@@ -48,6 +50,8 @@ namespace EffectPreview.Ui
                 _staminaArea = null;
                 _rainbowArea = null;
                 _shieldArea = null;
+                _passOutBorderBlink = null;
+                _petrifyDeathBorderBlink = null;
                 _built = false;
             }
 
@@ -84,6 +88,14 @@ namespace EffectPreview.Ui
                 return true;
             }
             if (_shieldArea != null && !_shieldArea.IsValid)
+            {
+                return true;
+            }
+            if (_passOutBorderBlink != null && !_passOutBorderBlink.IsValid)
+            {
+                return true;
+            }
+            if (_petrifyDeathBorderBlink != null && !_petrifyDeathBorderBlink.IsValid)
             {
                 return true;
             }
@@ -139,6 +151,33 @@ namespace EffectPreview.Ui
                 _shieldArea = GhostInvincibilityShield.Create(_bar.shield);
             }
 
+            // staminaBarOutline has no Image of its own, the visible border sprites are its "OutlineImage"/"OutlineCap" children (confirmed via runtime dump)
+            if (_passOutBorderBlink == null && _bar.staminaBarOutline != null)
+            {
+                Transform outlineImage = _bar.staminaBarOutline.Find("OutlineImage");
+                Transform outlineCap = _bar.staminaBarOutline.Find("OutlineCap");
+                UnityEngine.UI.Image img1 = outlineImage != null ? outlineImage.GetComponent<UnityEngine.UI.Image>() : null;
+                UnityEngine.UI.Image img2 = outlineCap != null ? outlineCap.GetComponent<UnityEngine.UI.Image>() : null;
+                if (img1 != null && img2 != null)
+                {
+                    _passOutBorderBlink = new BorderWarningBlink(img1, img2);
+                }
+                else if (img1 != null)
+                {
+                    _passOutBorderBlink = new BorderWarningBlink(img1);
+                }
+            }
+
+            // extraBarOutline (the bonus-stamina/petrify border) carries its own Image directly
+            if (_petrifyDeathBorderBlink == null && _bar.extraBarOutline != null)
+            {
+                UnityEngine.UI.Image img = _bar.extraBarOutline.GetComponent<UnityEngine.UI.Image>();
+                if (img != null)
+                {
+                    _petrifyDeathBorderBlink = new BorderWarningBlink(img);
+                }
+            }
+
             _built = true;
         }
 
@@ -180,12 +219,20 @@ namespace EffectPreview.Ui
 
             _staminaArea?.Apply(fullLocalWidth, character.GetMaxStamina(), character.data.currentStamina, totalIncrease);
 
+            // mirrors CharacterAfflictions.shouldPassOut (statusSum > 0.99f), but over every status the item touches, not just the ones with a bar badge
+            bool wouldPassOut = character.refs.afflictions.statusSum + ProjectedStatusSumIncrease(character, preview) > 0.99f;
+            _passOutBorderBlink?.Apply(wouldPassOut);
+
             float petrifyDelta = preview.PetrifyDelta + Preview.DynamicPetrifyPreview.Compute(preview, character);
             float petrifyRoom = Mathf.Max(0f, 1f - character.data.petrifyAmount * 0.01f);
             petrifyDelta = Mathf.Max(0f, Mathf.Min(petrifyDelta, petrifyRoom));
 
             float currentPetrifyFraction = character.data.petrifyAmount * 0.01f;
             float petrifyShrinkDelta = Mathf.Max(0f, preview.PetrifyReductionOnUse);
+
+            // mirrors CharacterData.shouldPetrify (petrifyAmount >= 100) - petrifyDelta is already clamped to petrifyRoom, so it only ever equals petrifyRoom when the item would fill the bar completely
+            bool wouldFullyPetrify = petrifyRoom > 0.0005f && petrifyDelta >= petrifyRoom - 0.0005f;
+            _petrifyDeathBorderBlink?.Apply(wouldFullyPetrify);
 
             bool petrifyActive = _bar.petrifyAffliction != null && _bar.petrifyAffliction.gameObject.activeSelf;
 
@@ -201,6 +248,28 @@ namespace EffectPreview.Ui
             _shieldArea?.Apply(preview.GrantsInvincibilityOnUse, realInvincible);
         }
 
+        // sums how much the item's status increases would raise statusSum by, over every status it touches (not just ones with a bar badge), net of anything it decreases on the same status
+        private float ProjectedStatusSumIncrease(Character character, Preview.ItemPreview preview)
+        {
+            float total = 0f;
+            foreach (KeyValuePair<CharacterAfflictions.STATUSTYPE, float> entry in preview.StatusIncreases)
+            {
+                CharacterAfflictions.STATUSTYPE type = entry.Key;
+                float increase = entry.Value;
+                preview.StatusDecreases.TryGetValue(type, out float decrease);
+                _dynamicHealBreakdown.TryGetValue(type, out float healDecrease);
+                decrease += healDecrease;
+                float live = character.refs.afflictions.GetCurrentStatus(type);
+                if (preview.ClearsCurableStatusOnUse && CurableStatuses.Contains(type))
+                {
+                    decrease = live;
+                }
+                float shrinkMagnitude = Mathf.Min(decrease, live);
+                total += Mathf.Max(0f, increase - shrinkMagnitude);
+            }
+            return total;
+        }
+
         private void HideAll()
         {
             foreach (GhostBadge badge in _statusGhosts.Values)
@@ -212,6 +281,8 @@ namespace EffectPreview.Ui
             _staminaArea?.Release();
             _rainbowArea?.Hide();
             _shieldArea?.Hide();
+            _passOutBorderBlink?.Hide();
+            _petrifyDeathBorderBlink?.Hide();
         }
     }
 }
