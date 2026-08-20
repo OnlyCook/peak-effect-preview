@@ -2,23 +2,20 @@
      Source: packaging/README.md + packaging/README.github-extra.md
      Regenerate with: bash packaging/gen-readme.sh -->
 
-**TODO: one-line pitch**
-
-TODO: short paragraph, what the mod does and why
+**Shows you exactly how much of each status effect will be added/removed before having to use the held item.** All with clear indicators and purely through the game's own stamina bars, while keeping the UI minimal and free of any additional text.
 
 <!-- TODO: header screenshot/gif -->
 
-Client-sided, no other player needs it installed for this to work.
+Fully client-sided, only you need to install the mod and only you will see it's effects.
 
 ---
 
 ## Features
 
-- TODO
-
-## Notes
-
-- TODO
+- See status effect changes of the held item
+- Hold an item at a campfire/stove to see how it's stats would change when cooked
+- Tell when you'd fall unconscious or turn into a statue through item usage
+- Know when you'd waste an item's precious stats
 
 ## Feedback & bug reports
 
@@ -29,10 +26,6 @@ Found a bug or have a suggestion? Please **[fill out this form](https://forms.gl
 Config file: `BepInEx/config/OnlyCook.EffectPreview.cfg`.
 
 TODO: settings summary
-
-## Credits
-
-TODO
 
 ## Requirements
 
