@@ -33,6 +33,9 @@ namespace EffectPreview.Ui
         private GhostInvincibilityShield _shieldArea;
         private BorderWarningBlink _passOutBorderBlink;
         private BorderWarningBlink _petrifyDeathBorderBlink;
+        private BarLabel _staminaCountLabel;
+        private Color _staminaVanillaForeground;
+        private Color _staminaVanillaOutline;
 
         private void LateUpdate()
         {
@@ -52,6 +55,7 @@ namespace EffectPreview.Ui
                 _shieldArea = null;
                 _passOutBorderBlink = null;
                 _petrifyDeathBorderBlink = null;
+                _staminaCountLabel = null;
                 _built = false;
             }
 
@@ -99,6 +103,10 @@ namespace EffectPreview.Ui
             {
                 return true;
             }
+            if (_staminaCountLabel != null && !_staminaCountLabel.IsValid)
+            {
+                return true;
+            }
             return _staminaArea != null && !_staminaArea.IsValid;
         }
 
@@ -117,23 +125,35 @@ namespace EffectPreview.Ui
 
         private void Build()
         {
+            // the game's own TMP font/material (moraleBoostText), reused so the bar-count labels read as native UI rather than a mod font
+            TMPro.TMP_FontAsset font = _bar.moraleBoostText != null ? _bar.moraleBoostText.font : null;
+            UnityEngine.Material fontMaterial = _bar.moraleBoostText != null ? _bar.moraleBoostText.fontSharedMaterial : null;
+
             foreach (BarAffliction affliction in _bar.afflictions)
             {
                 if (affliction == null || affliction.isPetrify || _statusGhosts.ContainsKey(affliction.afflictionType))
                 {
                     continue;
                 }
-                _statusGhosts[affliction.afflictionType] = GhostBadge.Create(affliction);
+                _statusGhosts[affliction.afflictionType] = GhostBadge.Create(affliction, font, fontMaterial);
             }
 
             if (_extraStaminaArea == null && _bar.extraBar != null && _bar.extraBarStamina != null && _bar.extraBarOutline != null && _bar.extraStaminaIcon != null)
             {
-                _extraStaminaArea = new GhostExtraStaminaArea(_bar.extraBar, _bar.extraBarStamina, _bar.extraBarOutline, _bar.extraStaminaIcon);
+                _extraStaminaArea = new GhostExtraStaminaArea(_bar.extraBar, _bar.extraBarStamina, _bar.extraBarOutline, _bar.extraStaminaIcon, font, fontMaterial);
             }
 
             if (_petrifyArea == null && _bar.petrifyAffliction != null && _bar.petrifyAffliction.rtf != null)
             {
-                _petrifyArea = new GhostPetrifyArea(_bar.petrifyAffliction);
+                _petrifyArea = new GhostPetrifyArea(_bar.petrifyAffliction, font, fontMaterial);
+            }
+
+            if (_staminaCountLabel == null && _bar.staminaBar != null)
+            {
+                _staminaCountLabel = BarLabel.Create(_bar.staminaBar.parent, font, fontMaterial);
+                _staminaVanillaForeground = WasteIndicator.SampleFillColor(_bar.staminaBar.gameObject, null);
+                _staminaVanillaForeground.a = 1f;
+                _staminaVanillaOutline = Common.ColorUtil.Darken(_staminaVanillaForeground);
             }
 
             if (_staminaArea == null && _bar.maxStaminaBar != null && _bar.staminaBar != null)
@@ -199,6 +219,9 @@ namespace EffectPreview.Ui
                 Preview.DynamicPetrifyPreview.ComputeHealBreakdown(preview, character, _dynamicHealBreakdown);
             }
 
+            // every waste marker uses this same height regardless of which bar it sits on - the bonus-stamina bar's is the tallest of the bunch
+            float unifiedWasteHeight = _bar.extraBarStamina != null ? WasteIndicator.MeasureHeight(_bar.extraBarStamina) : 0f;
+
             float totalIncrease = 0f;
             foreach (KeyValuePair<CharacterAfflictions.STATUSTYPE, GhostBadge> entry in _statusGhosts)
             {
@@ -211,7 +234,8 @@ namespace EffectPreview.Ui
                 {
                     decrease = live;
                 }
-                entry.Value.Apply(fullLocalWidth, live, decrease, increase);
+                float statusCap = character.refs.afflictions.GetStatusCap(entry.Key);
+                entry.Value.Apply(fullLocalWidth, live, decrease, increase, statusCap, unifiedWasteHeight);
 
                 float shrinkMagnitude = Mathf.Min(decrease, live);
                 totalIncrease += Mathf.Max(0f, increase - shrinkMagnitude);
@@ -219,13 +243,48 @@ namespace EffectPreview.Ui
 
             _staminaArea?.Apply(fullLocalWidth, character.GetMaxStamina(), character.data.currentStamina, totalIncrease);
 
+            if (_staminaCountLabel != null)
+            {
+                if (Plugin.Instance.Cfg.ShowVanillaBarCounts.Value && character.data.currentStamina > 0.0005f)
+                {
+                    // mirrors GhostStaminaArea's own shrink math - the "after" value this bar would clamp down to once totalIncrease eats into max stamina
+                    float projectedMaxStamina = Mathf.Max(0f, character.GetMaxStamina() - totalIncrease);
+                    float projectedCurrentStamina = Mathf.Min(character.data.currentStamina, projectedMaxStamina);
+                    _staminaCountLabel.ApplyTransition(_bar.staminaBar, character.data.currentStamina, projectedCurrentStamina, _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                }
+                else
+                {
+                    _staminaCountLabel.Hide();
+                }
+            }
+
             // mirrors CharacterAfflictions.shouldPassOut (statusSum > 0.99f), but over every status the item touches, not just the ones with a bar badge
-            bool wouldPassOut = character.refs.afflictions.statusSum + ProjectedStatusSumIncrease(character, preview) > 0.99f;
+            float projectedStatusSum = character.refs.afflictions.statusSum + ProjectedStatusSumIncrease(character, preview);
+            bool wouldPassOut = projectedStatusSum > 0.99f;
             _passOutBorderBlink?.Apply(wouldPassOut);
 
-            float petrifyDelta = preview.PetrifyDelta + Preview.DynamicPetrifyPreview.Compute(preview, character);
+            // mirrors StaminaBar.Update's staminaBarOutline widening (14 + max(1, statusSum) * fullBar width) using the projected sum, so the
+            // 100%-mark line actually moves past its resting spot before the overflow cue below has anything to sit past. Only ever widen -
+            // StaminaBar.Update already sets/shrinks this every frame off the real (non-projected) statusSum, so never narrow past that.
+            if (_bar.staminaBarOutline != null)
+            {
+                float projectedOutlineWidth = 14f + Mathf.Max(1f, projectedStatusSum) * fullLocalWidth;
+                if (projectedOutlineWidth > _bar.staminaBarOutline.sizeDelta.x)
+                {
+                    _bar.staminaBarOutline.sizeDelta = new Vector2(projectedOutlineWidth, _bar.staminaBarOutline.sizeDelta.y);
+                }
+            }
+
+            // mirrors StaminaBar.Update's staminaBarOutlineOverflowBar activation (statusSum > 1.005f), the vanilla "bar spills past 100%" cue.
+            // Only ever force it on here - StaminaBar.Update already turns it back off every frame off the real (non-projected) statusSum.
+            if (projectedStatusSum > 1.005f && _bar.staminaBarOutlineOverflowBar != null)
+            {
+                _bar.staminaBarOutlineOverflowBar.gameObject.SetActive(true);
+            }
+
+            float rawPetrifyDelta = Mathf.Max(0f, preview.PetrifyDelta + Preview.DynamicPetrifyPreview.Compute(preview, character));
             float petrifyRoom = Mathf.Max(0f, 1f - character.data.petrifyAmount * 0.01f);
-            petrifyDelta = Mathf.Max(0f, Mathf.Min(petrifyDelta, petrifyRoom));
+            float petrifyDelta = Mathf.Min(rawPetrifyDelta, petrifyRoom);
 
             float currentPetrifyFraction = character.data.petrifyAmount * 0.01f;
             float petrifyShrinkDelta = Mathf.Max(0f, preview.PetrifyReductionOnUse);
@@ -237,7 +296,7 @@ namespace EffectPreview.Ui
             bool petrifyActive = _bar.petrifyAffliction != null && _bar.petrifyAffliction.gameObject.activeSelf;
 
             // petrify first so its just-updated DisplayedDelta (not last frame's) gates the bonus-stamina outline
-            _petrifyArea?.Apply(fullLocalWidth, petrifyDelta, petrifyShrinkDelta, currentPetrifyFraction, petrifyActive);
+            _petrifyArea?.Apply(fullLocalWidth, petrifyDelta, rawPetrifyDelta, petrifyShrinkDelta, currentPetrifyFraction, petrifyActive, unifiedWasteHeight);
             bool petrifyGhostVisible = (_petrifyArea?.DisplayedDelta ?? 0f) > 0.002f;
 
             _extraStaminaArea?.Apply(fullLocalWidth, character.data.extraStamina, preview.ExtraStaminaDelta, character.data.petrifyAmount, petrifyActive, petrifyDelta, petrifyGhostVisible);
@@ -283,6 +342,7 @@ namespace EffectPreview.Ui
             _shieldArea?.Hide();
             _passOutBorderBlink?.Hide();
             _petrifyDeathBorderBlink?.Hide();
+            _staminaCountLabel?.Hide();
         }
     }
 }

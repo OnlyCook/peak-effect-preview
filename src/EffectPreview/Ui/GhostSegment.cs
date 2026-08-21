@@ -21,6 +21,8 @@ namespace EffectPreview.Ui
 
         internal bool IsValid => _rtf != null;
 
+        internal RectTransform Rtf => _rtf;
+
         // clones the real fill's sprite/look instead of a flat rectangle, tinted translucent to read as a preview
         // isRemoval: pulses alpha subtly rather than holding a flat tint, so a "this will be removed" ghost doesn't read identically to a "this will be added" one
         internal static GhostSegment Create(Transform ghostRoot, RectTransform template, bool isRemoval = false)

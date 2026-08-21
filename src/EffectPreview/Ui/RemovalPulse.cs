@@ -16,8 +16,8 @@ namespace EffectPreview.Ui
 
         internal static void Apply(Image[] images, float[] baseAlphas)
         {
-            float t = Time.time % CycleDuration;
-            float factor = Factor(t);
+            // disabled: hold at fully visible instead of pulsing, rather than skip the call entirely, so a mid-pulse toggle doesn't freeze at a dim frame
+            float factor = Plugin.Instance.Cfg.EnableRemovalBlink.Value ? Factor(Time.time % CycleDuration) : 1f;
 
             for (int i = 0; i < images.Length; i++)
             {

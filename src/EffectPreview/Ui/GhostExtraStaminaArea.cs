@@ -1,4 +1,5 @@
 using DG.Tweening;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -31,6 +32,13 @@ namespace EffectPreview.Ui
         private readonly RectTransform _extraBarOutline;
         private readonly GhostSegment _fillGhost;
         private readonly GhostIcon _icon;
+        private readonly WasteIndicator _waste;
+        private readonly BarLabel _ghostCountLabel;
+        private readonly BarLabel _realCountLabel;
+        private readonly Color _vanillaForeground;
+        private readonly Color _vanillaOutline;
+        private readonly Color _ghostForeground;
+        private readonly Color _ghostOutline;
         private readonly Transform _fillParent;
         private readonly Vector3[] _cornerBuffer = new Vector3[4];
 
@@ -47,7 +55,7 @@ namespace EffectPreview.Ui
         private float _displayedOutlineWidth;
         private bool _hasDisplayedOutlineWidth;
 
-        internal GhostExtraStaminaArea(RectTransform extraBar, RectTransform extraBarStamina, RectTransform extraBarOutline, Image extraStaminaIcon)
+        internal GhostExtraStaminaArea(RectTransform extraBar, RectTransform extraBarStamina, RectTransform extraBarOutline, Image extraStaminaIcon, TMP_FontAsset font, Material fontMaterial)
         {
             _extraBar = extraBar;
             _extraBarStamina = extraBarStamina;
@@ -55,13 +63,26 @@ namespace EffectPreview.Ui
             _fillParent = extraBarStamina.parent;
             _fillGhost = GhostSegment.Create(_fillParent, extraBarStamina);
             _icon = extraStaminaIcon != null ? GhostIcon.Create(extraStaminaIcon) : null;
+
+            Color fillColor = WasteIndicator.SampleFillColor(extraBarStamina.gameObject, null);
+            _waste = WasteIndicator.Create(_fillParent, fillColor);
+            _ghostCountLabel = BarLabel.Create(_fillParent, font, fontMaterial);
+            _realCountLabel = BarLabel.Create(_fillParent, font, fontMaterial);
+            _vanillaForeground = fillColor;
+            _vanillaForeground.a = 1f;
+            _vanillaOutline = Common.ColorUtil.Darken(_vanillaForeground);
+            _ghostForeground = BarLabel.GhostTint(fillColor);
+            _ghostOutline = Common.ColorUtil.Darken(_ghostForeground);
         }
 
-        internal bool IsValid => _extraBar != null && _extraBarStamina != null && _extraBarOutline != null && _fillGhost.IsValid && (_icon == null || _icon.IsValid);
+        internal bool IsValid => _extraBar != null && _extraBarStamina != null && _extraBarOutline != null && _fillGhost.IsValid && (_icon == null || _icon.IsValid) && _waste.IsValid
+            && _ghostCountLabel.IsValid && _realCountLabel.IsValid;
 
         // room is capped by petrify (real + previewed), matching AddExtraStamina's own clamp
         internal void Apply(float fullLocalWidth, float realExtraStamina, float delta, int petrifyAmount, bool petrifyActive, float petrifyPreviewDelta, bool petrifyGhostVisible)
         {
+            float requestedDelta = delta;
+
             // real growth this frame (item consumed) - snap the ghost down by the same amount instead of tweening through it, and ignore this frame's stale delta so it doesn't immediately re-trigger a grow tween
             float realGrowth = realExtraStamina - _lastRealExtraStamina;
             if (realGrowth > 0.0001f)
@@ -98,6 +119,9 @@ namespace EffectPreview.Ui
             {
                 _fillGhost.Hide();
                 _icon?.Hide();
+                _waste.Hide();
+                _ghostCountLabel.Hide();
+                ApplyRealCountLabel(realExtraStamina, realExtraStamina);
                 _hasDisplayedOutlineWidth = false;
                 return;
             }
@@ -163,6 +187,43 @@ namespace EffectPreview.Ui
             float basePadding = realExtraStamina > 0f ? RightEdgePaddingWithReal : RightEdgePaddingGhostOnly;
             float rightPadding = petrifyPresentOrPreviewed ? 0f : Mathf.Min(basePadding, displayedWidth + overlap);
             _fillGhost.Apply(realRightWorldX - overlap, displayedWidth + overlap - rightPadding);
+
+            // partial waste only: room clamped it below what was actually requested, and at least some of it landed
+            bool showWaste = Plugin.Instance.Cfg.EnableWasteIndicator.Value && targetDelta > 0.0005f && Mathf.Max(0f, requestedDelta) - targetDelta > 0.0005f;
+            if (showWaste)
+            {
+                _waste.Apply(_fillGhost.Rtf, _extraBarStamina, WasteIndicator.MeasureHeight(_extraBarStamina), rightEdge: true);
+            }
+            else
+            {
+                _waste.Hide();
+            }
+
+            if (Plugin.Instance.Cfg.ShowGhostBarCounts.Value && _displayedDelta > 0.0005f)
+            {
+                _ghostCountLabel.Apply(_fillGhost.Rtf, BarLabel.FormatCount(_displayedDelta), _ghostForeground, _ghostOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+            }
+            else
+            {
+                _ghostCountLabel.Hide();
+            }
+
+            // covers both directions in one clamp: an item's own add (targetDelta) growing it, and a previewed petrify gain shrinking previewedMaxExtraStamina
+            // out from under the real amount - ApplyTransition itself only surfaces the latter (a decrease), since the former already has its own ghost bar
+            float afterExtraStamina = Mathf.Min(realExtraStamina + targetDelta, previewedMaxExtraStamina);
+            ApplyRealCountLabel(realExtraStamina, afterExtraStamina);
+        }
+
+        private void ApplyRealCountLabel(float realExtraStamina, float afterExtraStamina)
+        {
+            if (Plugin.Instance.Cfg.ShowVanillaBarCounts.Value && realExtraStamina > 0.0005f)
+            {
+                _realCountLabel.ApplyTransition(_extraBarStamina, realExtraStamina, afterExtraStamina, _vanillaForeground, _vanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+            }
+            else
+            {
+                _realCountLabel.Hide();
+            }
         }
 
         internal void Hide()
@@ -176,6 +237,9 @@ namespace EffectPreview.Ui
             _hasDisplayedOutlineWidth = false;
             _fillGhost.Hide();
             _icon?.Hide();
+            _waste.Hide();
+            _ghostCountLabel.Hide();
+            _realCountLabel.Hide();
         }
     }
 }
