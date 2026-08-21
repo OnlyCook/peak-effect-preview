@@ -296,9 +296,11 @@ namespace EffectPreview.Ui
             // mirrors StaminaBar.Update's staminaBarOutline widening (14 + max(1, statusSum) * fullBar width) using the projected sum, so the
             // 100%-mark line actually moves past its resting spot before the overflow cue below has anything to sit past. Only ever widen -
             // StaminaBar.Update already sets/shrinks this every frame off the real (non-projected) statusSum, so never narrow past that.
+
+            // also widened to fit totalRowWidth, (tried to) explain in RESEARCH.md's badge row overflow note
             if (_bar.staminaBarOutline != null)
             {
-                float projectedOutlineWidth = 14f + Mathf.Max(1f, projectedStatusSum) * fullLocalWidth;
+                float projectedOutlineWidth = Mathf.Max(14f + Mathf.Max(1f, projectedStatusSum) * fullLocalWidth, 14f + Mathf.Max(fullLocalWidth, totalRowWidth));
                 if (projectedOutlineWidth > _bar.staminaBarOutline.sizeDelta.x)
                 {
                     _bar.staminaBarOutline.sizeDelta = new Vector2(projectedOutlineWidth, _bar.staminaBarOutline.sizeDelta.y);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Peak;
 using Peak.Afflictions;
@@ -48,6 +49,12 @@ namespace EffectPreview.Preview
 
         internal static ItemPreview Compute(Item item, Character character)
         {
+            return Compute(item, character, isActionActive: null);
+        }
+
+        // isActionActive: lets CookingPreviewCalculator simulate a toggled ItemAction without mutating it, see RESEARCH.md
+        internal static ItemPreview Compute(Item item, Character character, Func<ItemAction, bool> isActionActive)
+        {
             var preview = new ItemPreview();
             if (item == null || character == null)
             {
@@ -67,19 +74,20 @@ namespace EffectPreview.Preview
             // toggled by Action_BecomeSkeleton as the loop below encounters it, so any Action_ModifyStatus(ifSkeleton=true)
             // later in the same component order sees the post-toggle state, matching real RunAction execution order
             bool simulatedSkeleton = character.data.isSkeleton;
-            bool consumed = false;
-            bool consumesOnFinalUse = false;
+
+            var actions = item.GetComponents<ItemAction>();
+            bool wouldConsume = WouldConsumeItem(item, actions, isActionActive);
 
             // Action_ModifyStatus entries are netted here (not sent to preview.AddStatus one at a time) because multiple of
             // them can fire on the very same status within a single RunAction batch and really represent one coherent
             // change (Book of Bones: a +50 and a -25 Curse action both fire on the same press) - unlike an Affliction-driven
             // effect that applies part of its change now and the rest later (Energy Drink's Drowsy), which stays unnetted
             var immediateStatusDelta = new Dictionary<CharacterAfflictions.STATUSTYPE, float>();
-            var actions = item.GetComponents<ItemAction>();
             foreach (var action in actions)
             {
                 // GetComponents returns disabled components too - raw-vs-cooked bonuses sit disabled until cooked
-                if (!action.enabled || !action.gameObject.activeInHierarchy)
+                bool active = isActionActive != null ? isActionActive(action) : (action.enabled && action.gameObject.activeInHierarchy);
+                if (!active)
                 {
                     continue;
                 }
@@ -88,6 +96,13 @@ namespace EffectPreview.Preview
                 bool secondaryOnly = (action.OnSecondaryCastFinished || action.OnSecondaryPressed || action.OnSecondaryHeld || action.OnSecondaryCancelled)
                     && !(action.OnPressed || action.OnHeld || action.OnCastFinished || action.OnCancelled);
                 if (secondaryOnly)
+                {
+                    continue;
+                }
+
+                // an OnConsumed-only action never fires unless the item is actually consumed see RESEARCH.md
+                bool onConsumedOnly = action.OnConsumed && !action.OnPressed && !action.OnHeld && !action.OnCastFinished && !action.OnCancelled;
+                if (onConsumedOnly && !wouldConsume)
                 {
                     continue;
                 }
@@ -128,14 +143,6 @@ namespace EffectPreview.Preview
                 else if (action is Action_RestoreHunger restoreHunger)
                 {
                     AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Hunger, -restoreHunger.restorationAmount);
-                }
-                else if (action is Action_Consume || action is Action_ConsumeAndSpawn)
-                {
-                    consumed = true;
-                }
-                else if (action is Action_ReduceUses reduceUses)
-                {
-                    consumesOnFinalUse = reduceUses.consumeOnFullyUsed;
                 }
                 else if (action is Action_InflictPoison inflictPoison)
                 {
@@ -184,7 +191,6 @@ namespace EffectPreview.Preview
                 {
                     preview.ClearsCurableStatusOnUse = true;
                     preview.PetrifyReductionOnUse += 0.2f;
-                    consumed = true;
                 }
             }
 
@@ -193,25 +199,56 @@ namespace EffectPreview.Preview
                 preview.AddStatus(entry.Key, entry.Value);
             }
 
-            // Action_ReduceUses(consumeOnFullyUsed=true) auto-consumes the item once its last charge is spent (see
-            // Action_ReduceUses.RunAction in RESEARCH.md) - only preview the weight loss on that final press, not every
-            // press, and only for items that actually vanish this way (Book of Bones sets consumeOnFullyUsed=false, it
-            // survives at 0 uses as an inert item, so it correctly never hits this path)
-            if (!consumed && consumesOnFinalUse && item.HasData(DataEntryKey.ItemUses))
-            {
-                OptionableIntItemData usesData = item.GetData<OptionableIntItemData>(DataEntryKey.ItemUses);
-                if (usesData.HasData && usesData.Value == 1)
-                {
-                    consumed = true;
-                }
-            }
-
-            if (consumed)
+            if (wouldConsume)
             {
                 AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Weight, -WeightPerCarryUnit * item.CarryWeight);
             }
 
             return preview;
+        }
+
+        // exposed for CookingPreviewCalculator's own hunger/extra-stamina/poison magnitude math, see RESEARCH.md
+        internal static bool WouldConsumeItem(Item item, Func<ItemAction, bool> isActionActive = null)
+        {
+            return item != null && WouldConsumeItem(item, item.GetComponents<ItemAction>(), isActionActive);
+        }
+
+        // whether pressing (primary) use on this item ever actually calls Item.Consume() see RESEARCH.md
+        private static bool WouldConsumeItem(Item item, ItemAction[] actions, Func<ItemAction, bool> isActionActive)
+        {
+            foreach (var action in actions)
+            {
+                bool active = isActionActive != null ? isActionActive(action) : (action.enabled && action.gameObject.activeInHierarchy);
+                if (!active)
+                {
+                    continue;
+                }
+
+                bool secondaryOnly = (action.OnSecondaryCastFinished || action.OnSecondaryPressed || action.OnSecondaryHeld || action.OnSecondaryCancelled)
+                    && !(action.OnPressed || action.OnHeld || action.OnCastFinished || action.OnCancelled);
+                if (secondaryOnly)
+                {
+                    continue;
+                }
+
+                if (action is Action_Consume || action is Action_ConsumeAndSpawn || action is Action_SpawnGuidebookPage)
+                {
+                    return true;
+                }
+                if (action is Action_WarpToBiome warpToBiome && warpToBiome.segmentToWarpTo == Segment.Void)
+                {
+                    return true;
+                }
+                if (action is Action_ReduceUses reduceUses && reduceUses.consumeOnFullyUsed && item.HasData(DataEntryKey.ItemUses))
+                {
+                    OptionableIntItemData usesData = item.GetData<OptionableIntItemData>(DataEntryKey.ItemUses);
+                    if (usesData.HasData && usesData.Value == 1)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         // covers afflictions whose effect only lands once their buff wears off (energy drink's crash, etc)
