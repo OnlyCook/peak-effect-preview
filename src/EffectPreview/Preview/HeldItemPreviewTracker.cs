@@ -11,6 +11,7 @@ namespace EffectPreview.Preview
         private Item _lastItem;
         private int _lastCookedAmount;
         private int _lastUses;
+        private bool _lastCookingPreviewActive;
         private Object _lastEmptyHandedSource;
         // disambiguates "no source yet computed" from "computed, found nothing" - null is valid for both
         private bool _lastEmptyHandedSourceValid;
@@ -37,6 +38,7 @@ namespace EffectPreview.Preview
                 _lastItem = item;
                 _lastCookedAmount = 0;
                 _lastUses = 0;
+                _lastCookingPreviewActive = false;
                 _lastEmptyHandedSource = null;
                 _lastEmptyHandedSourceValid = false;
                 return;
@@ -62,8 +64,13 @@ namespace EffectPreview.Preview
                 ? usesData.Value
                 : 0;
 
+            bool cookingPreviewActive = Plugin.Instance.Cfg.EnableCookingPreview.Value
+                && Input.GetKey(Plugin.Instance.Cfg.CookingPreviewKey.Value)
+                && IsAbleToCookHeldItem(item, character);
+
             // ReferenceEquals, not ==: Unity's == treats a destroyed object as null, which would mask an item->null transition
-            if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount && uses == _lastUses)
+            if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount && uses == _lastUses
+                && cookingPreviewActive == _lastCookingPreviewActive)
             {
                 return;
             }
@@ -71,7 +78,25 @@ namespace EffectPreview.Preview
             _lastItem = item;
             _lastCookedAmount = cookedAmount;
             _lastUses = uses;
-            Common.Safe.Run("HeldItemPreviewTracker.Compute", () => Current = ItemPreviewCalculator.Compute(item, character));
+            _lastCookingPreviewActive = cookingPreviewActive;
+            Common.Safe.Run("HeldItemPreviewTracker.Compute", () => Current = cookingPreviewActive
+                ? CookingPreviewCalculator.Compute(item, character)
+                : ItemPreviewCalculator.Compute(item, character));
+        }
+
+        // holding the cooking preview key while looking at a lit campfire you're able to cook this item on right now,
+        // mirrors Campfire.IsInteractible/IsConstantlyInteractable's own gate, see RESEARCH.md
+        private bool IsAbleToCookHeldItem(Item item, Character character)
+        {
+            if (!CookingPreviewCalculator.CanPreviewNextStage(item))
+            {
+                return false;
+            }
+
+            Interaction interaction = Interaction.instance;
+            IInteractible hovered = interaction != null ? interaction.currentHovered : null;
+
+            return hovered is Campfire campfire && campfire.Lit;
         }
 
         // empty-handed: preview what interacting with whatever the player is currently looking at would grant right now
