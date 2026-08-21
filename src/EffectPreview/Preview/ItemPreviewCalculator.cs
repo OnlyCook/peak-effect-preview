@@ -76,8 +76,8 @@ namespace EffectPreview.Preview
             // later in the same component order sees the post-toggle state, matching real RunAction execution order
             bool simulatedSkeleton = character.data.isSkeleton;
 
-            var actions = item.GetComponents<ItemAction>();
-            bool wouldConsume = WouldConsumeItem(item, actions, isActionActive);
+            var actions = item.GetComponentsInChildren<ItemAction>();
+            bool wouldConsume = WouldConsumeItem(item, actions, isActionActive, requireLastUse: true);
 
             // Action_ModifyStatus entries are netted here (not sent to preview.AddStatus one at a time) because multiple of
             // them can fire on the very same status within a single RunAction batch and really represent one coherent
@@ -136,6 +136,13 @@ namespace EffectPreview.Preview
                     }
                     immediateStatusDelta.TryGetValue(modifyStatus.statusType, out float existingDelta);
                     immediateStatusDelta[modifyStatus.statusType] = existingDelta + modifyStatus.changeAmount;
+
+                    // SubtractStatus mirrors any non-natural Poison decrease onto Spores by the same amount, see RESEARCH.md
+                    if (modifyStatus.statusType == CharacterAfflictions.STATUSTYPE.Poison && modifyStatus.changeAmount < 0f)
+                    {
+                        immediateStatusDelta.TryGetValue(CharacterAfflictions.STATUSTYPE.Spores, out float existingSpores);
+                        immediateStatusDelta[CharacterAfflictions.STATUSTYPE.Spores] = existingSpores + modifyStatus.changeAmount;
+                    }
                 }
                 else if (action is Action_GiveExtraStamina giveExtraStamina)
                 {
@@ -284,11 +291,17 @@ namespace EffectPreview.Preview
         // exposed for CookingPreviewCalculator's own hunger/extra-stamina/poison magnitude math, see RESEARCH.md
         internal static bool WouldConsumeItem(Item item, Func<ItemAction, bool> isActionActive = null)
         {
-            return item != null && WouldConsumeItem(item, item.GetComponents<ItemAction>(), isActionActive);
+            return item != null && WouldConsumeItem(item, item.GetComponentsInChildren<ItemAction>(), isActionActive, requireLastUse: true);
+        }
+
+        // like WouldConsumeItem but ignores remaining uses - "does eating this ever consume it", see RESEARCH.md
+        internal static bool CanEverConsumeItem(Item item, Func<ItemAction, bool> isActionActive = null)
+        {
+            return item != null && WouldConsumeItem(item, item.GetComponentsInChildren<ItemAction>(), isActionActive, requireLastUse: false);
         }
 
         // whether pressing (primary) use on this item ever actually calls Item.Consume() see RESEARCH.md
-        private static bool WouldConsumeItem(Item item, ItemAction[] actions, Func<ItemAction, bool> isActionActive)
+        private static bool WouldConsumeItem(Item item, ItemAction[] actions, Func<ItemAction, bool> isActionActive, bool requireLastUse)
         {
             foreach (var action in actions)
             {
@@ -313,12 +326,19 @@ namespace EffectPreview.Preview
                 {
                     return true;
                 }
-                if (action is Action_ReduceUses reduceUses && reduceUses.consumeOnFullyUsed && item.HasData(DataEntryKey.ItemUses))
+                if (action is Action_ReduceUses reduceUses && reduceUses.consumeOnFullyUsed)
                 {
-                    OptionableIntItemData usesData = item.GetData<OptionableIntItemData>(DataEntryKey.ItemUses);
-                    if (usesData.HasData && usesData.Value == 1)
+                    if (!requireLastUse)
                     {
                         return true;
+                    }
+                    if (item.HasData(DataEntryKey.ItemUses))
+                    {
+                        OptionableIntItemData usesData = item.GetData<OptionableIntItemData>(DataEntryKey.ItemUses);
+                        if (usesData.HasData && usesData.Value == 1)
+                        {
+                            return true;
+                        }
                     }
                 }
             }

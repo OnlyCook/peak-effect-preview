@@ -2,6 +2,6 @@
 
 Initial release.
 
-Known issues:
+Known issues (expect more though):
 - When a ghost bar is removed others may jitter slightly.
 - Certain co-op preview logic may produce incorrect results.

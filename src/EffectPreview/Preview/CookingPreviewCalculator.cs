@@ -41,13 +41,20 @@ namespace EffectPreview.Preview
                 return preview;
             }
 
-            // Candlestick-type items are never actually consumed, see RESEARCH.md
-            if (!ItemPreviewCalculator.WouldConsumeItem(item, activeOverride))
+            // exploding destroys the item outright instead of ever letting it be eaten, so skip the cook-stage stat
+            // math below, but keep the base preview since the explosion cloud still always hits the player, see RESEARCH.md
+            if (WouldExplodeOnNextCook(cooking, nextCookedAmount))
             {
                 return preview;
             }
 
-            var restoreHunger = item.GetComponent<Action_RestoreHunger>();
+            // Candlestick-type items are never actually consumed, see RESEARCH.md
+            if (!ItemPreviewCalculator.CanEverConsumeItem(item, activeOverride))
+            {
+                return preview;
+            }
+
+            var restoreHunger = item.GetComponentInChildren<Action_RestoreHunger>();
             if (restoreHunger != null && !isSkeleton)
             {
                 float newAmount = restoreHunger.restorationAmount;
@@ -62,7 +69,7 @@ namespace EffectPreview.Preview
                 AdjustStatusDecrease(preview, CharacterAfflictions.STATUSTYPE.Hunger, newAmount - restoreHunger.restorationAmount);
             }
 
-            var extraStamina = item.GetComponent<Action_GiveExtraStamina>();
+            var extraStamina = item.GetComponentInChildren<Action_GiveExtraStamina>();
             float currentExtraStamina = extraStamina != null ? extraStamina.amount : 0f;
             float newExtraStamina = currentExtraStamina;
             if (nextCookedAmount < 2)
@@ -81,6 +88,23 @@ namespace EffectPreview.Preview
             }
 
             return preview;
+        }
+
+        // mirrors ItemCooking.hasExplosion's search, but only cares whether THIS next cook newly crosses the trigger
+        private static bool WouldExplodeOnNextCook(ItemCooking cooking, int nextCookedAmount)
+        {
+            if (cooking.additionalCookingBehaviors == null)
+            {
+                return false;
+            }
+            foreach (AdditionalCookingBehavior behavior in cooking.additionalCookingBehaviors)
+            {
+                if (behavior is CookingBehavior_Explode && cooking.timesCookedLocal < behavior.cookedAmountToTrigger && nextCookedAmount >= behavior.cookedAmountToTrigger)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         // null when nothing would newly toggle on the next cook
