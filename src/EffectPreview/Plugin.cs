@@ -20,6 +20,7 @@ namespace EffectPreview
             Instance = this;
             Cfg = new PluginConfig(Config);
             _harmony = new Harmony(PluginInfo.Guid);
+            _harmony.PatchAll();
 
             GameObject go = new GameObject("EffectPreview.Runtime");
             DontDestroyOnLoad(go);

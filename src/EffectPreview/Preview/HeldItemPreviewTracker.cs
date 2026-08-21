@@ -11,12 +11,13 @@ namespace EffectPreview.Preview
         private Item _lastItem;
         private int _lastCookedAmount;
         private int _lastUses;
-        private Campfire _lastCampfire;
-        // null is a legitimate "no lightable campfire nearby" result, so a plain ReferenceEquals against _lastCampfire
-        // can't tell that state apart from "campfire branch hasn't run yet this empty-handed streak" (e.g. right after
-        // dropping an item) - this flag disambiguates the two so the empty-handed/no-campfire case still forces one
-        // recompute (clearing Current back to empty) instead of leaving the previous item's ghost bars stuck on screen
-        private bool _lastCampfireValid;
+        private Object _lastEmptyHandedSource;
+        // null is a legitimate "nothing previewable nearby" result, so a plain ReferenceEquals against
+        // _lastEmptyHandedSource can't tell that state apart from "the empty-handed branch hasn't run yet this streak"
+        // (e.g. right after dropping an item) - this flag disambiguates the two so the empty-handed/no-source case still
+        // forces one recompute (clearing Current back to empty) instead of leaving the previous item's ghost bars stuck
+        // on screen
+        private bool _lastEmptyHandedSourceValid;
 
         private void Awake()
         {
@@ -40,19 +41,19 @@ namespace EffectPreview.Preview
                 _lastItem = item;
                 _lastCookedAmount = 0;
                 _lastUses = 0;
-                _lastCampfire = null;
-                _lastCampfireValid = false;
+                _lastEmptyHandedSource = null;
+                _lastEmptyHandedSourceValid = false;
                 return;
             }
 
             if (item == null)
             {
-                UpdateCampfirePreview(character);
+                UpdateEmptyHandedPreview(character);
                 return;
             }
 
-            _lastCampfire = null;
-            _lastCampfireValid = false;
+            _lastEmptyHandedSource = null;
+            _lastEmptyHandedSourceValid = false;
 
             // cooking mutates the same Item instance in place, so also recompute when CookedAmount changes
             int cookedAmount = item.data != null && item.data.TryGetDataEntry<IntItemData>(DataEntryKey.CookedAmount, out var cookedData)
@@ -77,46 +78,92 @@ namespace EffectPreview.Preview
             Common.Safe.Run("HeldItemPreviewTracker.Compute", () => Current = ItemPreviewCalculator.Compute(item, character));
         }
 
-        // empty-handed: preview what walking up to and lighting a currently-unlit campfire would grant, see CampfirePreviewCalculator
-        private void UpdateCampfirePreview(Character character)
+        // empty-handed: preview what interacting with whatever the player is currently looking at would grant right now
+        // (an unlit campfire to light, an ancient luggage to open, ...), see CampfirePreviewCalculator/LuggagePreviewCalculator
+        private void UpdateEmptyHandedPreview(Character character)
         {
             _lastItem = null;
             _lastCookedAmount = 0;
             _lastUses = 0;
 
-            Campfire campfire = TryGetLightableCampfire(character);
-            if (_lastCampfireValid && ReferenceEquals(campfire, _lastCampfire))
+            Object source = TryGetEmptyHandedPreviewSource(character);
+            if (_lastEmptyHandedSourceValid && ReferenceEquals(source, _lastEmptyHandedSource))
             {
                 return;
             }
 
-            _lastCampfire = campfire;
-            _lastCampfireValid = true;
-            Common.Safe.Run("HeldItemPreviewTracker.ComputeCampfire", () => Current = CampfirePreviewCalculator.Compute(campfire));
+            _lastEmptyHandedSource = source;
+            _lastEmptyHandedSourceValid = true;
+            Common.Safe.Run("HeldItemPreviewTracker.ComputeEmptyHanded", () =>
+            {
+                if (source is Campfire campfire)
+                {
+                    Current = CampfirePreviewCalculator.Compute(campfire);
+                }
+                else if (source is Luggage luggage)
+                {
+                    Current = LuggagePreviewCalculator.Compute(luggage);
+                }
+                else if (source is ThornOnMe thorn)
+                {
+                    Current = ThornPreviewCalculator.Compute(thorn);
+                }
+                else
+                {
+                    Current = new ItemPreview();
+                }
+            });
         }
 
-        private static Campfire TryGetLightableCampfire(Character character)
+        private static Object TryGetEmptyHandedPreviewSource(Character character)
         {
             if (character == null)
             {
                 return null;
             }
             Interaction interaction = Interaction.instance;
-            if (interaction == null || !(interaction.currentHovered is Campfire campfire))
+            IInteractible hovered = interaction != null ? interaction.currentHovered : null;
+
+            if (hovered is Campfire campfire && IsLightableCampfire(campfire))
             {
-                return null;
+                return campfire;
             }
+            if (hovered is Luggage luggage && IsOpenableLuggage(luggage))
+            {
+                return luggage;
+            }
+            if (hovered is ThornOnMe thorn && IsRemovableOwnThorn(thorn, character))
+            {
+                return thorn;
+            }
+            return null;
+        }
+
+        private static bool IsLightableCampfire(Campfire campfire)
+        {
             if (campfire.state != Campfire.FireState.Off)
             {
-                return null;
+                return false;
             }
             // mirrors the same gate Campfire.Interact_CastFinished uses before it will actually RPC Light_Rpc - if this
             // is false, holding interact on it does nothing, so no preview should show either
-            if (!campfire.EveryoneInRange())
+            return campfire.EveryoneInRange();
+        }
+
+        private static bool IsOpenableLuggage(Luggage luggage)
+        {
+            // mirrors Luggage.Interact_CastFinished's own gate before it will actually RPC OpenLuggageRPC
+            return luggage.IsInteractible(Character.localCharacter);
+        }
+
+        // only the local player's own body, not an ally's - removing someone else's thorn/arrow doesn't touch your bars
+        private static bool IsRemovableOwnThorn(ThornOnMe thorn, Character character)
+        {
+            if (!thorn.stuckIn || thorn.character != character)
             {
-                return null;
+                return false;
             }
-            return campfire;
+            return thorn.IsInteractible(character);
         }
     }
 }

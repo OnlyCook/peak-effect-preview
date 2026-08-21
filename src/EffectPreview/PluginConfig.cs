@@ -10,6 +10,7 @@ namespace EffectPreview
         internal ConfigEntry<bool> ShowGhostBarCounts;
         internal ConfigEntry<bool> ShowVanillaBarCounts;
         internal ConfigEntry<float> BarCountFontScale;
+        internal ConfigEntry<bool> StickyThornRemoval;
 
         internal PluginConfig(ConfigFile config)
         {
@@ -17,6 +18,8 @@ namespace EffectPreview
 
             EnablePreview = config.Bind("General", "enable-preview", true,
                 "Show a ghost preview of status effect changes on both stamina bars while holding an item that would cause them.");
+            StickyThornRemoval = config.Bind("General", "sticky-thorn-removal", true,
+                "Keep removing a physical Thorn/Arrow you're holding interact on even if your aim drifts off it, instead of vanilla's behavior of cancelling the moment you're not looking straight at it.");
             EnableWasteIndicator = config.Bind("General", "enable-waste-indicator", false,
                 "Show a marker on the ghost preview when the held item's effect would only be partially applied (some of it wasted).");
             EnableRemovalBlink = config.Bind("General", "enable-removal-blink", true,
