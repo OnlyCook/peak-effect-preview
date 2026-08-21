@@ -5,8 +5,7 @@ namespace EffectPreview.Preview
 {
     internal static class JetpackFuelPreviewCalculator
     {
-        // mirrors Backpack.AddFuel's num computation exactly (points on JetpackItem's 0..100 scale, not the 0..1
-        // UseRemainingPercentage fraction); any item not matching a special case still adds the 25-point default
+        // mirrors Backpack.AddFuel's num computation, see RESEARCH.md
         internal static int ComputeAddedFuel(Item item)
         {
             int num = 25;

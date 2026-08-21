@@ -4,11 +4,7 @@ namespace EffectPreview.Preview
 {
     internal static class LuggagePreviewCalculator
     {
-        // Ancient Luggage is a LuggageCursed instance under the hood (its GameObject is just named "LuggageAncient") -
-        // LuggageCursed.Interact_CastFinished applies its Injury delta directly in code off its own injuryAmt field
-        // (halved for a skeleton), so no trap/AOE hookup exists to search for. Its Curse delta is
-        // Random.Range(minCurse, maxCurse + 1) * 0.025f - non-deterministic, so it's skipped here the same way
-        // ItemPreviewCalculator skips other randomized effects (Action_RandomMushroomEffect etc, see RESEARCH.md)
+        // Ancient Luggage is a LuggageCursed under the hood; its random Curse delta is intentionally not previewed, see RESEARCH.md
         internal static ItemPreview Compute(Luggage luggage)
         {
             var preview = new ItemPreview();

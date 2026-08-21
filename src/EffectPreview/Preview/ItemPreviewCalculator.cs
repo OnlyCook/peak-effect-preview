@@ -206,14 +206,6 @@ namespace EffectPreview.Preview
                 }
             }
 
-            // TEMP diagnostic to confirm the consumeOnFullyUsed/ItemUses pattern generalizes across multi-use items
-            // (Scout Cookies etc), remove once confirmed (see CLAUDE.md)
-            if (item.HasData(DataEntryKey.ItemUses))
-            {
-                OptionableIntItemData diagUses = item.GetData<OptionableIntItemData>(DataEntryKey.ItemUses);
-                Plugin.Instance.Log.LogInfo($"[MultiUseWeight diag] item={item.name} uses={diagUses.Value} consumesOnFinalUse={consumesOnFinalUse} consumed={consumed}");
-            }
-
             if (consumed)
             {
                 AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Weight, -WeightPerCarryUnit * item.CarryWeight);

@@ -223,18 +223,22 @@ namespace EffectPreview.Ui
             // every waste marker uses this same height regardless of which bar it sits on - the bonus-stamina bar's is the tallest of the bunch
             float unifiedWasteHeight = _bar.extraBarStamina != null ? WasteIndicator.MeasureHeight(_bar.extraBarStamina) : 0f;
 
-            // pass 1: widths only, for every badge; deliberately no per-badge layout rebuild here, see the single rebuild below
-            float totalIncrease = 0f;
+            // pass 1: widths only, for every badge; deliberately no per-badge layout rebuild here, see the single rebuild below.
+            // also sums each badge's target row width, used below to cap the stamina shrink - see RESEARCH.md
+            float totalRowWidth = 0f;
             foreach (KeyValuePair<CharacterAfflictions.STATUSTYPE, GhostBadge> entry in _statusGhosts)
             {
                 GetStatusPreview(character, preview, entry.Key, out float live, out float decrease, out float increase, out _);
                 entry.Value.ApplyWidths(fullLocalWidth, live, decrease, increase);
-
-                float shrinkMagnitude = Mathf.Min(decrease, live);
-                totalIncrease += Mathf.Max(0f, increase - shrinkMagnitude);
+                totalRowWidth += entry.Value.GetTargetRowWidth(fullLocalWidth, live, decrease, increase);
             }
 
-            _staminaArea?.Apply(fullLocalWidth, character.GetMaxStamina(), character.data.currentStamina, totalIncrease);
+            // true net change in statusSum this item would cause, see ComputeNetStatusSumDelta
+            float netStatusSumDelta = ComputeNetStatusSumDelta(character, preview);
+            float maxAllowedWidthPx = Mathf.Max(0f, fullLocalWidth - totalRowWidth);
+
+            // the shrink-ghost visual only ever shrinks, never grows back, so it only wants the positive half of the delta
+            _staminaArea?.Apply(fullLocalWidth, character.GetMaxStamina(), character.data.currentStamina, Mathf.Max(0f, netStatusSumDelta), maxAllowedWidthPx);
 
             // one conslidated rebuild for the whole row (every badge, plus maxStaminaBar at sibling 0) now that every width for this frame is final
             // each badge's own waste markers/labels below read world corners, so they need this settled first
@@ -273,8 +277,8 @@ namespace EffectPreview.Ui
                 }
                 else if (character.data.currentStamina > 0.0005f)
                 {
-                    // mirrors GhostStaminaArea's own shrink math - the "after" value this bar would clamp down to once totalIncrease eats into max stamina
-                    float projectedMaxStamina = Mathf.Max(0f, character.GetMaxStamina() - totalIncrease);
+                    // the real, signed delta (not just its positive half like GhostStaminaArea's visual) - see RESEARCH.md
+                    float projectedMaxStamina = Mathf.Max(0f, character.GetMaxStamina() - netStatusSumDelta);
                     float projectedCurrentStamina = Mathf.Min(character.data.currentStamina, projectedMaxStamina);
                     _staminaCountLabel.ApplyTransition(_bar.staminaBar, character.data.currentStamina, projectedCurrentStamina, _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
                 }
@@ -284,8 +288,8 @@ namespace EffectPreview.Ui
                 }
             }
 
-            // mirrors CharacterAfflictions.shouldPassOut (statusSum > 0.99f), but over every status the item touches, not just the ones with a bar badge
-            float projectedStatusSum = character.refs.afflictions.statusSum + ProjectedStatusSumIncrease(character, preview);
+            // mirrors CharacterAfflictions.shouldPassOut (statusSum > 0.99f), using the same true net delta as the stamina label above
+            float projectedStatusSum = character.refs.afflictions.statusSum + netStatusSumDelta;
             bool wouldPassOut = projectedStatusSum > 0.99f;
             _passOutBorderBlink?.Apply(wouldPassOut);
 
@@ -348,26 +352,34 @@ namespace EffectPreview.Ui
             statusCap = character.refs.afflictions.GetStatusCap(type);
         }
 
-        // sums how much the item's status increases would raise statusSum by, over every status it touches (not just ones with a bar badge), net of anything it decreases on the same status
-        private float ProjectedStatusSumIncrease(Character character, Preview.ItemPreview preview)
+        // signed net statusSum change over every touched status, not floored at zero per type - a pure decrease (Hunger,
+        // Weight) genuinely offsets an increase (Drowsy) elsewhere instead of being discarded, see RESEARCH.md
+        private float ComputeNetStatusSumDelta(Character character, Preview.ItemPreview preview)
         {
             float total = 0f;
-            foreach (KeyValuePair<CharacterAfflictions.STATUSTYPE, float> entry in preview.StatusIncreases)
+            var visited = new HashSet<CharacterAfflictions.STATUSTYPE>();
+            foreach (CharacterAfflictions.STATUSTYPE type in preview.StatusIncreases.Keys)
             {
-                CharacterAfflictions.STATUSTYPE type = entry.Key;
-                float increase = entry.Value;
-                preview.StatusDecreases.TryGetValue(type, out float decrease);
-                _dynamicHealBreakdown.TryGetValue(type, out float healDecrease);
-                decrease += healDecrease;
-                float live = character.refs.afflictions.GetCurrentStatus(type);
-                if (preview.ClearsCurableStatusOnUse && CurableStatuses.Contains(type))
+                if (visited.Add(type))
                 {
-                    decrease = live;
+                    total += NetStatusDelta(character, preview, type);
                 }
-                float shrinkMagnitude = Mathf.Min(decrease, live);
-                total += Mathf.Max(0f, increase - shrinkMagnitude);
+            }
+            foreach (CharacterAfflictions.STATUSTYPE type in preview.StatusDecreases.Keys)
+            {
+                if (visited.Add(type))
+                {
+                    total += NetStatusDelta(character, preview, type);
+                }
             }
             return total;
+        }
+
+        private float NetStatusDelta(Character character, Preview.ItemPreview preview, CharacterAfflictions.STATUSTYPE type)
+        {
+            GetStatusPreview(character, preview, type, out float live, out float decrease, out float increase, out _);
+            float shrinkMagnitude = Mathf.Min(decrease, live);
+            return increase - shrinkMagnitude;
         }
 
         private void HideAll()

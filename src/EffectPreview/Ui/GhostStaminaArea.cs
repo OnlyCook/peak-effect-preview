@@ -23,16 +23,17 @@ namespace EffectPreview.Ui
         // Unity-null: maxStaminaBar/staminaBar can get destroyed and recreated by the game (observed on item pickup)
         internal bool IsValid => _maxRtf != null && _curRtf != null;
 
-        internal void Apply(float fullLocalWidth, float trueMaxStamina, float trueCurrentStamina, float totalPositiveDelta)
+        // maxAllowedWidthPx: measured hard ceiling from the badge row itself, see RESEARCH.md
+        internal void Apply(float fullLocalWidth, float trueMaxStamina, float trueCurrentStamina, float totalPositiveDelta, float maxAllowedWidthPx = float.MaxValue)
         {
-            if (totalPositiveDelta <= 0f)
+            if (totalPositiveDelta <= 0f && maxAllowedWidthPx >= fullLocalWidth)
             {
                 Release();
                 return;
             }
 
             float lerpStep = Mathf.Min(Time.deltaTime * LerpRate, MaxLerpStep);
-            float targetMax = Mathf.Max(0f, trueMaxStamina - totalPositiveDelta) * fullLocalWidth;
+            float targetMax = Mathf.Min(Mathf.Max(0f, trueMaxStamina * fullLocalWidth - totalPositiveDelta * fullLocalWidth), maxAllowedWidthPx);
             float targetCur = Mathf.Min(trueCurrentStamina * fullLocalWidth, targetMax);
 
             if (!_shrinking)

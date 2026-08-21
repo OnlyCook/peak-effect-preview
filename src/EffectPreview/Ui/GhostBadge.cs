@@ -110,6 +110,28 @@ namespace EffectPreview.Ui
             _increaseGhost.Apply(fullLocalWidth * increaseAmount, lerpStep);
         }
 
+        // sum of every row element's settled target width, not its current mid-lerp width, see RESEARCH.md
+        internal float GetTargetRowWidth(float fullLocalWidth, float liveValue, float decreaseAmount, float increaseAmount)
+        {
+            float shrinkMagnitude = Mathf.Min(decreaseAmount, liveValue);
+            float realWidth;
+            if (shrinkMagnitude > 0f)
+            {
+                float remaining = Mathf.Max(0f, liveValue - shrinkMagnitude);
+                realWidth = fullLocalWidth * remaining;
+            }
+            else
+            {
+                // not touched by us this frame - whatever's currently there is vanilla's own (already-settled) width
+                realWidth = _realRtf.gameObject.activeSelf ? _realRtf.sizeDelta.x : 0f;
+            }
+
+            float overlap = Mathf.Min(shrinkMagnitude, increaseAmount);
+            float decreaseTargetWidth = fullLocalWidth * (shrinkMagnitude - overlap);
+            float increaseTargetWidth = fullLocalWidth * increaseAmount;
+            return realWidth + decreaseTargetWidth + increaseTargetWidth;
+        }
+
         // waste markers and count labels read world corners, so this must run only after the row-wide layout rebuild (see GhostBarOverlay)
         // has settled this frame's positions for every badge and maxStaminaBar alike
         // statusCap: CharacterAfflictions.GetStatusCap(type) - most statuses cap at 200%, Injury caps at 100%

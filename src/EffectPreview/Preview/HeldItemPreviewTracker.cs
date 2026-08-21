@@ -12,11 +12,7 @@ namespace EffectPreview.Preview
         private int _lastCookedAmount;
         private int _lastUses;
         private Object _lastEmptyHandedSource;
-        // null is a legitimate "nothing previewable nearby" result, so a plain ReferenceEquals against
-        // _lastEmptyHandedSource can't tell that state apart from "the empty-handed branch hasn't run yet this streak"
-        // (e.g. right after dropping an item) - this flag disambiguates the two so the empty-handed/no-source case still
-        // forces one recompute (clearing Current back to empty) instead of leaving the previous item's ghost bars stuck
-        // on screen
+        // disambiguates "no source yet computed" from "computed, found nothing" - null is valid for both
         private bool _lastEmptyHandedSourceValid;
 
         private void Awake()
@@ -124,15 +120,18 @@ namespace EffectPreview.Preview
             Interaction interaction = Interaction.instance;
             IInteractible hovered = interaction != null ? interaction.currentHovered : null;
 
-            if (hovered is Campfire campfire && IsLightableCampfire(campfire))
+            if (Plugin.Instance.Cfg.EnableWorldObjectPreviews.Value)
             {
-                return campfire;
+                if (hovered is Campfire campfire && IsLightableCampfire(campfire))
+                {
+                    return campfire;
+                }
+                if (hovered is Luggage luggage && IsOpenableLuggage(luggage))
+                {
+                    return luggage;
+                }
             }
-            if (hovered is Luggage luggage && IsOpenableLuggage(luggage))
-            {
-                return luggage;
-            }
-            if (hovered is ThornOnMe thorn && IsRemovableOwnThorn(thorn, character))
+            if (Plugin.Instance.Cfg.EnablePlayerEntityPreviews.Value && hovered is ThornOnMe thorn && IsRemovableOwnThorn(thorn, character))
             {
                 return thorn;
             }

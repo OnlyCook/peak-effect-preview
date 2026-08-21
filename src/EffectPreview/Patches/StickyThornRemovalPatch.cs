@@ -2,6 +2,7 @@ using HarmonyLib;
 
 namespace EffectPreview.Patches
 {
+    // keeps a held Thorn/Arrow removal (and its hover highlight) locked on target while interact is held, see RESEARCH.md
     [HarmonyPatch(typeof(Interaction), nameof(Interaction.DoInteractableRaycasts))]
     internal static class StickyThornRemovalPatch
     {

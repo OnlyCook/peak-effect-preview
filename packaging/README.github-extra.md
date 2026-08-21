@@ -6,7 +6,7 @@
 
 - You can install the mod through r2modman as `Effect_Preview`,
 - On [Thunderstore](https://thunderstore.io/c/peak/p/OnlyCook/Effect_Preview/),
-- Or on Nexus Mods (TODO: link once published)
+- Or on [Nexus Mods](https://www.nexusmods.com/peak/mods/213)
 
 ## For developers
 
