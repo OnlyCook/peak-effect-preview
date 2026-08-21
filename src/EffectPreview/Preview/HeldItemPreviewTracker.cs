@@ -10,6 +10,7 @@ namespace EffectPreview.Preview
 
         private Item _lastItem;
         private int _lastCookedAmount;
+        private int _lastUses;
 
         private void Awake()
         {
@@ -32,6 +33,7 @@ namespace EffectPreview.Preview
                 Current = new ItemPreview();
                 _lastItem = item;
                 _lastCookedAmount = 0;
+                _lastUses = 0;
                 return;
             }
 
@@ -40,14 +42,21 @@ namespace EffectPreview.Preview
                 ? cookedData.Value
                 : 0;
 
+            // a charge item (Book of Bones etc) also mutates the same Item instance in place when used - it isn't consumed/
+            // reference-swapped, only its remaining ItemUses drops, so that needs its own recompute trigger too
+            int uses = item != null && item.data != null && item.data.TryGetDataEntry<OptionableIntItemData>(DataEntryKey.ItemUses, out var usesData)
+                ? usesData.Value
+                : 0;
+
             // ReferenceEquals, not ==: Unity's == treats a destroyed object as null, which would mask an item->null transition
-            if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount)
+            if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount && uses == _lastUses)
             {
                 return;
             }
 
             _lastItem = item;
             _lastCookedAmount = cookedAmount;
+            _lastUses = uses;
             Common.Safe.Run("HeldItemPreviewTracker.Compute", () => Current = ItemPreviewCalculator.Compute(item, character));
         }
     }

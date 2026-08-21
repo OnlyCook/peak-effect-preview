@@ -258,7 +258,20 @@ namespace EffectPreview.Ui
 
             if (_staminaCountLabel != null)
             {
-                if (Plugin.Instance.Cfg.ShowVanillaBarCounts.Value && character.data.currentStamina > 0.0005f)
+                if (!Plugin.Instance.Cfg.ShowVanillaBarCounts.Value)
+                {
+                    _staminaCountLabel.Hide();
+                }
+                else if (character.infiniteStam)
+                {
+                    // CharacterData.currentStamina's setter silently blocks any decrease while infiniteStam is active, so
+                    // natural regen just keeps adding to it forever with nothing to clamp it back down - staminaBar's own
+                    // width is driven straight off that runaway value (see StaminaBar.Update), so anchoring the label to it
+                    // drags the label along as it grows arbitrarily far past the visible bar. maxStaminaBar isn't affected
+                    // by that quirk (it's driven by GetMaxStamina(), a normal derived value), so anchor to that instead
+                    _staminaCountLabel.Apply(_bar.maxStaminaBar, "∞", _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                }
+                else if (character.data.currentStamina > 0.0005f)
                 {
                     // mirrors GhostStaminaArea's own shrink math - the "after" value this bar would clamp down to once totalIncrease eats into max stamina
                     float projectedMaxStamina = Mathf.Max(0f, character.GetMaxStamina() - totalIncrease);

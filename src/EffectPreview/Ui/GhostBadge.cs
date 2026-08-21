@@ -146,7 +146,11 @@ namespace EffectPreview.Ui
             float fontScale = Plugin.Instance.Cfg.BarCountFontScale.Value;
             if (Plugin.Instance.Cfg.ShowGhostBarCounts.Value)
             {
-                _decreaseCountLabel.Apply(_decreaseGhost.Rtf, shrinkMagnitude > 0.0005f ? BarLabel.FormatCount(shrinkMagnitude) : null, _ghostForeground, _ghostOutline, fontScale);
+                // matches ApplyWidths' own overlap subtraction, so the label reads the same number as the strip's actual rendered width
+                // (e.g. Energy Drink: -50 Drowsy clamped to 32 live, then +25 back - the decrease strip (and its label) only ever covers the net 7 that doesn't come back)
+                float overlap = Mathf.Min(shrinkMagnitude, increaseAmount);
+                float decreaseLabelAmount = shrinkMagnitude - overlap;
+                _decreaseCountLabel.Apply(_decreaseGhost.Rtf, decreaseLabelAmount > 0.0005f ? BarLabel.FormatCount(decreaseLabelAmount) : null, _ghostForeground, _ghostOutline, fontScale);
                 _increaseCountLabel.Apply(_increaseGhost.Rtf, increaseAmount > 0.0005f ? BarLabel.FormatCount(increaseAmount) : null, _ghostForeground, _ghostOutline, fontScale);
             }
             else
@@ -208,7 +212,6 @@ namespace EffectPreview.Ui
 
             // diagonal line thickness as a fraction of the icon's shorter side
             private const float StrikethroughThicknessRatio = 0.16f;
-            private static readonly Color StrikethroughColor = new Color(1f, 0.15f, 0.1f, 1f);
 
             internal static Strip CloneFrom(RectTransform sourceBadge, Transform insertAfter, bool isRemoval = false)
             {
@@ -222,13 +225,10 @@ namespace EffectPreview.Ui
                     Object.Destroy(driver);
                 }
 
-                // removal ghost keeps the regular icon but crosses it out; increase ghost just shows the regular icon translucent
-                RectTransform strikethroughRtf = isRemoval && icon != null ? CreateStrikethrough(icon.rectTransform) : null;
-
-                Image[] images = go.GetComponentsInChildren<Image>(includeInactive: true);
-
                 // sampled before the tint loop below touches these colors, so this is still the vanilla, undimmed fill color
                 Color fillColor = WasteIndicator.SampleFillColor(go, icon);
+
+                Image[] images = go.GetComponentsInChildren<Image>(includeInactive: true);
 
                 float[] baseAlphas = new float[images.Length];
                 for (int i = 0; i < images.Length; i++)
@@ -238,6 +238,11 @@ namespace EffectPreview.Ui
                     images[i].color = c;
                     baseAlphas[i] = c.a;
                 }
+
+                // icon.color at this point is already the translucent tint just applied above - reuse it so the strikethrough
+                // reads as "this icon, crossed out" rather than a generic red X (the badge's own fill color is often a neutral
+                // gray/white shared across every status, the icon glyph itself is what actually carries the per-status color)
+                RectTransform strikethroughRtf = isRemoval && icon != null ? CreateStrikethrough(icon.rectTransform, icon.color) : null;
 
                 go.transform.SetSiblingIndex(insertAfter.GetSiblingIndex() + 1);
                 go.SetActive(false);
@@ -297,7 +302,7 @@ namespace EffectPreview.Ui
             }
 
             // parented under the icon itself so it always shares the icon's position/scale; size is (re)synced every Apply via UpdateStrikethrough
-            private static RectTransform CreateStrikethrough(RectTransform iconRtf)
+            private static RectTransform CreateStrikethrough(RectTransform iconRtf, Color tintColor)
             {
                 GameObject go = new GameObject("GhostStrikethrough", typeof(RectTransform), typeof(Image));
                 RectTransform rtf = (RectTransform)go.transform;
@@ -306,7 +311,7 @@ namespace EffectPreview.Ui
                 rtf.anchoredPosition = Vector2.zero;
 
                 Image image = go.GetComponent<Image>();
-                image.color = StrikethroughColor;
+                image.color = tintColor;
                 image.raycastTarget = false;
                 return rtf;
             }

@@ -5,7 +5,10 @@ namespace EffectPreview.Preview
 {
     internal class ItemPreview
     {
-        // increases and decreases on the same status are kept separate, not netted, so both show
+        // increases and decreases on the same status are kept separate, not netted, so both show - some items genuinely
+        // apply both to the same status as two distinct, temporally separate effects (Energy Drink: -50 Drowsy immediately,
+        // then +25 Drowsy once the speed buff wears off later). ItemPreviewCalculator nets same-instant contributions
+        // (e.g. Book of Bones' two simultaneous Action_ModifyStatus on Curse) into a single call before they ever reach here
         internal readonly Dictionary<CharacterAfflictions.STATUSTYPE, float> StatusIncreases = new Dictionary<CharacterAfflictions.STATUSTYPE, float>();
         internal readonly Dictionary<CharacterAfflictions.STATUSTYPE, float> StatusDecreases = new Dictionary<CharacterAfflictions.STATUSTYPE, float>();
 
