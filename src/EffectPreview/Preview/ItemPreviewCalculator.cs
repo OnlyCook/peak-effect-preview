@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Peak;
 using Peak.Afflictions;
+using UnityEngine;
 
 namespace EffectPreview.Preview
 {
@@ -161,6 +162,22 @@ namespace EffectPreview.Preview
                         }
                     }
                 }
+                // must come before Action_ApplyAffliction below since it derives from it
+                //Bugle of Friendship's massAffliction has ignoreCaster=true, TryAddAfflictionToLocalCharacter skips the holder entirely
+                else if (action is Action_ApplyMassAffliction massAffliction)
+                {
+                    if (!massAffliction.ignoreCaster)
+                    {
+                        AddAffliction(preview, simulatedSkeleton, massAffliction.affliction);
+                        if (massAffliction.extraAfflictions != null)
+                        {
+                            foreach (Affliction extra in massAffliction.extraAfflictions)
+                            {
+                                AddAffliction(preview, simulatedSkeleton, extra);
+                            }
+                        }
+                    }
+                }
                 else if (action is Action_ApplyAffliction applyAffliction)
                 {
                     AddAffliction(preview, simulatedSkeleton, applyAffliction.affliction);
@@ -201,10 +218,67 @@ namespace EffectPreview.Preview
 
             if (wouldConsume)
             {
-                AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Weight, -WeightPerCarryUnit * item.CarryWeight);
+                AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Weight, WeightDeltaOnConsume(item, character));
             }
 
             return preview;
+        }
+
+        // Weight is SetStatus()'d fresh every frame off a clamped live sum, not incrementally added - see RESEARCH.md
+        private static float WeightDeltaOnConsume(Item item, Character character)
+        {
+            float cap = character.refs.afflictions.GetStatusCap(CharacterAfflictions.STATUSTYPE.Weight);
+            int rawSum = RawCarryWeightSum(character);
+            float liveStatus = Mathf.Clamp(WeightPerCarryUnit * rawSum, 0f, cap);
+            float projectedStatus = Mathf.Clamp(WeightPerCarryUnit * (rawSum - item.CarryWeight), 0f, cap);
+            return projectedStatus - liveStatus;
+        }
+
+        // mirrors CharacterAfflictions.UpdateWeight's item-weight sum, see RESEARCH.md
+        private static int RawCarryWeightSum(Character character)
+        {
+            int sum = 0;
+            ItemSlot[] itemSlots = character.player.itemSlots;
+            for (int i = 0; i < itemSlots.Length; i++)
+            {
+                if (itemSlots[i].prefab != null)
+                {
+                    sum += itemSlots[i].prefab.CarryWeight;
+                }
+            }
+            BackpackSlot backpackSlot = character.player.backpackSlot;
+            if (!backpackSlot.IsEmpty() && backpackSlot.data.TryGetDataEntry<BackpackData>(DataEntryKey.BackpackData, out var backpackData))
+            {
+                for (int i = 0; i < backpackData.itemSlots.Length; i++)
+                {
+                    ItemSlot slot = backpackData.itemSlots[i];
+                    if (!slot.IsEmpty())
+                    {
+                        sum += slot.prefab.CarryWeight;
+                    }
+                }
+                if (ItemDatabase.TryGetItem(backpackSlot.GetPrefabName(), out Item backpackItem))
+                {
+                    sum += backpackItem.CarryWeight;
+                }
+            }
+            ItemSlot trinketSlot = character.player.GetItemSlot(250);
+            if (!trinketSlot.IsEmpty())
+            {
+                sum += trinketSlot.prefab.CarryWeight;
+            }
+            if (character.data.carriedPlayer != null)
+            {
+                sum += 8;
+            }
+            foreach (StickyItemComponent stuckItem in StickyItemComponent.ALL_STUCK_ITEMS)
+            {
+                if (stuckItem.stuckToCharacter == character)
+                {
+                    sum += stuckItem.addWeightToStuckPlayer;
+                }
+            }
+            return sum;
         }
 
         // exposed for CookingPreviewCalculator's own hunger/extra-stamina/poison magnitude math, see RESEARCH.md
