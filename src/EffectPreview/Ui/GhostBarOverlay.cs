@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Peak.Afflictions;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace EffectPreview.Ui
 {
@@ -222,26 +223,38 @@ namespace EffectPreview.Ui
             // every waste marker uses this same height regardless of which bar it sits on - the bonus-stamina bar's is the tallest of the bunch
             float unifiedWasteHeight = _bar.extraBarStamina != null ? WasteIndicator.MeasureHeight(_bar.extraBarStamina) : 0f;
 
+            // pass 1: widths only, for every badge; deliberately no per-badge layout rebuild here, see the single rebuild below
             float totalIncrease = 0f;
             foreach (KeyValuePair<CharacterAfflictions.STATUSTYPE, GhostBadge> entry in _statusGhosts)
             {
-                preview.StatusIncreases.TryGetValue(entry.Key, out float increase);
-                preview.StatusDecreases.TryGetValue(entry.Key, out float decrease);
-                _dynamicHealBreakdown.TryGetValue(entry.Key, out float healDecrease);
-                decrease += healDecrease;
-                float live = character.refs.afflictions.GetCurrentStatus(entry.Key);
-                if (preview.ClearsCurableStatusOnUse && CurableStatuses.Contains(entry.Key))
-                {
-                    decrease = live;
-                }
-                float statusCap = character.refs.afflictions.GetStatusCap(entry.Key);
-                entry.Value.Apply(fullLocalWidth, live, decrease, increase, statusCap, unifiedWasteHeight);
+                GetStatusPreview(character, preview, entry.Key, out float live, out float decrease, out float increase, out _);
+                entry.Value.ApplyWidths(fullLocalWidth, live, decrease, increase);
 
                 float shrinkMagnitude = Mathf.Min(decrease, live);
                 totalIncrease += Mathf.Max(0f, increase - shrinkMagnitude);
             }
 
             _staminaArea?.Apply(fullLocalWidth, character.GetMaxStamina(), character.data.currentStamina, totalIncrease);
+
+            // one conslidated rebuild for the whole row (every badge, plus maxStaminaBar at sibling 0) now that every width for this frame is final
+            // each badge's own waste markers/labels below read world corners, so they need this settled first
+            RectTransform rowParent = null;
+            foreach (GhostBadge badge in _statusGhosts.Values)
+            {
+                rowParent = badge.RowParent;
+                break;
+            }
+            if (rowParent != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rowParent);
+            }
+
+            // pass 2: waste markers + count labels, now that the row-wide rebuild above reflects this frame's final widths for every badge
+            foreach (KeyValuePair<CharacterAfflictions.STATUSTYPE, GhostBadge> entry in _statusGhosts)
+            {
+                GetStatusPreview(character, preview, entry.Key, out float live, out float decrease, out float increase, out float statusCap);
+                entry.Value.ApplyOverlays(live, decrease, increase, statusCap, unifiedWasteHeight);
+            }
 
             if (_staminaCountLabel != null)
             {
@@ -305,6 +318,21 @@ namespace EffectPreview.Ui
             // CharacterData.isInvincible is internal to the game assembly, so this checks the same thing through the public affliction API instead
             bool realInvincible = character.refs.afflictions.HasAfflictionType(Affliction.AfflictionType.Invincibility, out _);
             _shieldArea?.Apply(preview.GrantsInvincibilityOnUse, realInvincible);
+        }
+
+        // shared live/decrease/increase/cap computation for one status, reused across both GhostBadge passes so they stay in sync
+        private void GetStatusPreview(Character character, Preview.ItemPreview preview, CharacterAfflictions.STATUSTYPE type, out float live, out float decrease, out float increase, out float statusCap)
+        {
+            preview.StatusIncreases.TryGetValue(type, out increase);
+            preview.StatusDecreases.TryGetValue(type, out decrease);
+            _dynamicHealBreakdown.TryGetValue(type, out float healDecrease);
+            decrease += healDecrease;
+            live = character.refs.afflictions.GetCurrentStatus(type);
+            if (preview.ClearsCurableStatusOnUse && CurableStatuses.Contains(type))
+            {
+                decrease = live;
+            }
+            statusCap = character.refs.afflictions.GetStatusCap(type);
         }
 
         // sums how much the item's status increases would raise statusSum by, over every status it touches (not just ones with a bar badge), net of anything it decreases on the same status

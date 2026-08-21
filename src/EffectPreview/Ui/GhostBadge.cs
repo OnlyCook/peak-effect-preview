@@ -64,9 +64,14 @@ namespace EffectPreview.Ui
             return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost, decreaseWaste, increaseWaste, decreaseCountLabel, increaseCountLabel, realCountLabel);
         }
 
-        // statusCap: CharacterAfflictions.GetStatusCap(type) - most statuses cap at 200%, Injury caps at 100%
-        // wasteHeight: the shared, unified waste-marker height every area uses (see WasteIndicator.MeasureHeight)
-        internal void Apply(float fullLocalWidth, float liveValue, float decreaseAmount, float increaseAmount, float statusCap, float wasteHeight)
+        // the row this badge lives in (shared by every affliction badge, and by maxStaminaBar at sibling 0) - callers use this to do exactly
+        // one LayoutRebuilder pass per frame for the whole row, instead of each badge separately rebuilding against whatever partially-updated
+        // state its neighbors (including maxStaminaBar, resized by GhostStaminaArea) happen to be in at that point in the loop
+        internal RectTransform RowParent => _realRtf.parent as RectTransform;
+
+        // updates real/ghost bar widths only - no layout rebuild and no waste/label positioning here, since those read world corners and need
+        // the WHOLE row (every badge, plus maxStaminaBar) to have already settled this frame's widths first; see ApplyOverlays
+        internal void ApplyWidths(float fullLocalWidth, float liveValue, float decreaseAmount, float increaseAmount)
         {
             float lerpStep = Mathf.Min(Time.deltaTime * LerpRate, MaxLerpStep);
             float shrinkMagnitude = Mathf.Min(decreaseAmount, liveValue);
@@ -103,14 +108,16 @@ namespace EffectPreview.Ui
             float overlap = Mathf.Min(shrinkMagnitude, increaseAmount);
             _decreaseGhost.Apply(fullLocalWidth * (shrinkMagnitude - overlap), lerpStep);
             _increaseGhost.Apply(fullLocalWidth * increaseAmount, lerpStep);
+        }
 
-            RectTransform parent = _realRtf.parent as RectTransform;
-            if (parent != null)
-            {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(parent);
-            }
+        // waste markers and count labels read world corners, so this must run only after the row-wide layout rebuild (see GhostBarOverlay)
+        // has settled this frame's positions for every badge and maxStaminaBar alike
+        // statusCap: CharacterAfflictions.GetStatusCap(type) - most statuses cap at 200%, Injury caps at 100%
+        // wasteHeight: the shared, unified waste-marker height every area uses (see WasteIndicator.MeasureHeight)
+        internal void ApplyOverlays(float liveValue, float decreaseAmount, float increaseAmount, float statusCap, float wasteHeight)
+        {
+            float shrinkMagnitude = Mathf.Min(decreaseAmount, liveValue);
 
-            // waste markers read world corners, so they need to run after the layout rebuild above has settled this frame's positions
             // partial waste only: something has to actually land for there to be a "the rest didn't fit" cue - fully-wasted (nothing applied) shows nothing
             bool wasteEnabled = Plugin.Instance.Cfg.EnableWasteIndicator.Value;
             bool showDecreaseWaste = wasteEnabled && shrinkMagnitude > 0.0005f && decreaseAmount - shrinkMagnitude > 0.0005f;
