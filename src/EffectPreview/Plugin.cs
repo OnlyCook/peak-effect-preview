@@ -25,6 +25,7 @@ namespace EffectPreview
             DontDestroyOnLoad(go);
             go.AddComponent<Preview.HeldItemPreviewTracker>();
             go.AddComponent<Ui.GhostBarOverlay>();
+            go.AddComponent<Ui.GhostJetpackFuelGauge>();
 
             Logger.LogInfo($"{PluginInfo.Name} {PluginInfo.Version} loaded.");
         }
