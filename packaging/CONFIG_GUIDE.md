@@ -10,9 +10,9 @@ Then you need to get to your config file, it should be here: `.../PEAK/BepInEx/c
 
 Now you can simply edit that config file with any text editor. It may look scary to some but editing that file is very simple!
 
-> Only the lines **without** a hash (#) are actually configurable.
+> Note: only the lines **without** a hash (#) are actually configurable, everything else is a comment.
 
-Here's an example:
+### Here's an example:
 
 ```
 ## Show a ghost preview of status effect changes on both stamina bars while holding an item that would cause them.
@@ -27,3 +27,12 @@ enable-preview = true
 - The **fourth line** is the actual setting. In this case you can change it from 'true' to 'false' to disable that setting.
 
 *Note:* there can also be another line `# Acceptable values:`, this one tells you what kind of values you to can use. `# Acceptable value range:` tells you the min and max numbers you can use.
+
+### Data types
+
+| Data type | Acceptable values |
+| --- | --- |
+| `Boolean` | `true` or `false` |
+| `Single` / `Double` | Any valid floating-point number, e.g. `0.5`, `1.0`, `-10.25` |
+| `Int32` | Any whole digit from `-2147483648` to `2147483647`|
+| Enum types (e.g. `KeyCode`) | Pick one of the stated acceptable values|
