@@ -1,8 +1,8 @@
 **Shows you exactly how much of each status effect will be added/removed before having to use the held item.** All with clear indicators and purely through the game's own stamina bars which keeps the UI minimal.
 
-<img width="789" height="210" alt="screenshot-1" src="https://raw.githubusercontent.com/OnlyCook/peak-effect-preview/refs/heads/main/packaging/screenshot-1.png" />
+<img width="790" height="222" alt="screenshot-1" src="https://raw.githubusercontent.com/OnlyCook/peak-effect-preview/refs/heads/main/packaging/screenshot-1.png" />
 
-Fully client-sided, only you need to install the mod and only you will see it's effects.
+Fully client-sided: only you need to install the mod and only you will see it's effects.
 
 ---
 
@@ -14,7 +14,7 @@ Fully client-sided, only you need to install the mod and only you will see it's 
 - *(Optional)* Know when you'd waste an item's precious stats
 - *(Optional)* See status effect counts/numbers
 
-<img width="789" height="210" alt="screenshot-2" src="https://raw.githubusercontent.com/OnlyCook/peak-effect-preview/refs/heads/main/packaging/screenshot-2.png" />
+<img width="790" height="222" alt="screenshot-2" src="https://raw.githubusercontent.com/OnlyCook/peak-effect-preview/refs/heads/main/packaging/screenshot-2.png" />
 
 ## Feedback & bug reports
 
