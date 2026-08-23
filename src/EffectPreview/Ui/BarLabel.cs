@@ -25,7 +25,7 @@ namespace EffectPreview.Ui
         private const float GhostAlpha = 0.85f;
 
         // "before -> after" is only shown if it would still fit at a legible size - below that, the arrow/after half is dropped rather than shrunk further
-        private const float MinReadableFontSizeForFit = 10f;
+        private const float MinReadableFontSizeForFit = 13f;
         private const float EstimatedCharWidthFactor = 0.55f;
 
         // game doesnt carry any arrow symbol directly, but TMP somehow resolves it so we don't touch it
@@ -89,9 +89,12 @@ namespace EffectPreview.Ui
         // shows "before -> after" only when the item would actually bring the value DOWN and there's room for the full form; otherwise falls
         // back to just "before" - an increase is already visualized by this area's own ghost bar, so the transition only needs to cover the
         // direction that bar can't show (e.g. bonus stamina being knocked down by a previewed petrify gain)
-        internal void ApplyTransition(RectTransform target, float beforeFraction, float afterFraction, Color foreground, Color outlineColor, float scaleMultiplier)
+        //
+        // fitWidthOverride: world-space fit width to use instead of target's own (possibly still mid-lerp) width, see RESEARCH.md
+        internal void ApplyTransition(RectTransform target, float beforeFraction, float afterFraction, Color foreground, Color outlineColor, float scaleMultiplier, float fitWidthOverride = -1f)
         {
-            if (target == null || !target.gameObject.activeInHierarchy)
+            // activeSelf not activeInHierarchy - an ancestor can be transiently inactive mid-frame and still get forced open before render
+            if (target == null || !target.gameObject.activeSelf)
             {
                 Hide();
                 return;
@@ -106,8 +109,16 @@ namespace EffectPreview.Ui
 
             string fullText = beforeText + " " + ArrowGlyph + " " + FormatCount(afterFraction);
 
-            target.GetWorldCorners(_cornerBuffer);
-            float width = _cornerBuffer[2].x - _cornerBuffer[0].x;
+            float width;
+            if (fitWidthOverride >= 0f)
+            {
+                width = fitWidthOverride;
+            }
+            else
+            {
+                target.GetWorldCorners(_cornerBuffer);
+                width = _cornerBuffer[2].x - _cornerBuffer[0].x;
+            }
             float requiredWidth = fullText.Length * EstimatedCharWidthFactor * MinReadableFontSizeForFit;
 
             Apply(target, width >= requiredWidth ? fullText : beforeText, foreground, outlineColor, scaleMultiplier);
@@ -115,7 +126,7 @@ namespace EffectPreview.Ui
 
         internal void Apply(RectTransform target, string content, Color foreground, Color outlineColor, float scaleMultiplier)
         {
-            if (target == null || !target.gameObject.activeInHierarchy || string.IsNullOrEmpty(content))
+            if (target == null || !target.gameObject.activeSelf || string.IsNullOrEmpty(content))
             {
                 Hide();
                 return;

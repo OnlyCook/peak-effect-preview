@@ -137,7 +137,7 @@ namespace EffectPreview.Ui
                 return;
             }
 
-            // petrifyRtf must be active for the icon (nested under it) to render; native keeps it inactive at 0 petrify
+            // petrifyRtf must be active for the icon (nested under it) to render; native keeps it inactive at 0 petrify - Patches/SuppressPetrifyIconReplayPatch.cs stops that from blinking
             _petrifyRtf.gameObject.SetActive(true);
 
             bool iconShouldShow = !realPetrifyActive && (targetDelta > 0f || _timeSinceTargetZero < IconHideDelay);

@@ -156,6 +156,14 @@ namespace EffectPreview.Preview
                 {
                     AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Poison, inflictPoison.inflictionTime * inflictPoison.poisonPerSecond);
                 }
+                else if (action is Action_AddOrRemoveThorns addOrRemoveThorns)
+                {
+                    float thornsDelta = ComputeThornsDelta(addOrRemoveThorns, character);
+                    if (thornsDelta != 0f)
+                    {
+                        AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Thorns, thornsDelta);
+                    }
+                }
                 // must come before Action_ApplyAffliction below since it derives from it
                 else if (action is Action_SuperJumpAmulet superJumpAmulet)
                 {
@@ -229,6 +237,42 @@ namespace EffectPreview.Preview
             }
 
             return preview;
+        }
+
+        // AddThorn/RemoveRandomThornLinq pick uniformly among matching physical thorns, so this previews the expected total damage of 'count' of them rather than a specific pick
+        private static float ComputeThornsDelta(Action_AddOrRemoveThorns action, Character character)
+        {
+            if (action.thornCount == 0 || character?.refs?.afflictions?.physicalThorns == null)
+            {
+                return 0f;
+            }
+
+            List<ThornOnMe> physicalThorns = character.refs.afflictions.physicalThorns;
+            if (action.thornCount > 0)
+            {
+                return ExpectedThornDamage(physicalThorns, stuckIn: false, action.thornCount) * 0.025f;
+            }
+            return -ExpectedThornDamage(physicalThorns, stuckIn: true, -action.thornCount) * 0.025f;
+        }
+
+        private static float ExpectedThornDamage(List<ThornOnMe> physicalThorns, bool stuckIn, int count)
+        {
+            int matchCount = 0;
+            int totalDamage = 0;
+            foreach (ThornOnMe thorn in physicalThorns)
+            {
+                if (thorn != null && thorn.isThorn && thorn.stuckIn == stuckIn)
+                {
+                    matchCount++;
+                    totalDamage += thorn.GetThornDamage();
+                }
+            }
+            if (matchCount == 0)
+            {
+                return 0f;
+            }
+            int picked = Mathf.Min(count, matchCount);
+            return totalDamage * (picked / (float)matchCount);
         }
 
         // Weight is SetStatus()'d fresh every frame off a clamped live sum, not incrementally added - see RESEARCH.md

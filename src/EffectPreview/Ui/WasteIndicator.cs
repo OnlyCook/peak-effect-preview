@@ -73,7 +73,8 @@ namespace EffectPreview.Ui
         // rightEdge: false = left edge (nudged right/inward), true = right edge (nudged left/inward)
         internal void Apply(RectTransform edgeRtf, RectTransform centerRtf, float height, bool rightEdge)
         {
-            if (edgeRtf == null || !edgeRtf.gameObject.activeInHierarchy || centerRtf == null)
+            // activeSelf, not activeInHierarchy - see BarLabel's Apply/ApplyTransition for why, same reasoning applies here
+            if (edgeRtf == null || !edgeRtf.gameObject.activeSelf || centerRtf == null)
             {
                 Hide();
                 return;

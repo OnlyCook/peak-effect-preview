@@ -30,6 +30,7 @@ namespace EffectPreview.Ui
         private readonly RectTransform _extraBar;
         private readonly RectTransform _extraBarStamina;
         private readonly RectTransform _extraBarOutline;
+        private readonly Image _extraStaminaIcon;
         private readonly GhostSegment _fillGhost;
         private readonly GhostIcon _icon;
         private readonly WasteIndicator _waste;
@@ -60,6 +61,7 @@ namespace EffectPreview.Ui
             _extraBar = extraBar;
             _extraBarStamina = extraBarStamina;
             _extraBarOutline = extraBarOutline;
+            _extraStaminaIcon = extraStaminaIcon;
             _fillParent = extraBarStamina.parent;
             _fillGhost = GhostSegment.Create(_fillParent, extraBarStamina);
             _icon = extraStaminaIcon != null ? GhostIcon.Create(extraStaminaIcon) : null;
@@ -114,6 +116,9 @@ namespace EffectPreview.Ui
             float overrideTargetWidth = Mathf.Min(realWidth, previewedMaxExtraStamina * fullLocalWidth);
             bool overridingNow = overrideTargetWidth < realWidth - 0.01f;
 
+            // the width the real fill is settling towards, not its current mid-lerp value - keeps the label's arrow-vs-compact decision stable
+            float settledLocalWidth = overridingNow ? overrideTargetWidth : realWidth;
+
             // petrifyGhostVisible (not just petrifyPreviewDelta>0) keeps the bar open until petrify's own ghost has visually faded, not just until its target hits 0
             if (targetDelta <= 0f && _displayedDelta < HiddenThreshold && !overridingNow && !_manualWidthControl && !petrifyGhostVisible)
             {
@@ -121,13 +126,30 @@ namespace EffectPreview.Ui
                 _icon?.Hide();
                 _waste.Hide();
                 _ghostCountLabel.Hide();
-                ApplyRealCountLabel(realExtraStamina, realExtraStamina);
-                _hasDisplayedOutlineWidth = false;
+                ApplyRealCountLabel(realExtraStamina, realExtraStamina, settledLocalWidth);
+
+                // only ours to reset when nothing real is driving the outline either - native grows it on its own for real bonus stamina/petrify
+                if (realExtraStamina <= 0f && !petrifyActive)
+                {
+                    ResetOutlineToResting();
+                }
+                else
+                {
+                    _hasDisplayedOutlineWidth = false;
+                }
                 return;
             }
 
             _extraBar.gameObject.SetActive(true);
             _extraBar.sizeDelta = ShownExtraBarSize;
+
+            // set ourselves instead of waiting a frame for native's own catch-up, avoiding a stale one-frame icon flash
+            bool realStaminaVisible = realWidth > 6.1f;
+            _extraBarStamina.gameObject.SetActive(realStaminaVisible);
+            if (_extraStaminaIcon != null)
+            {
+                _extraStaminaIcon.gameObject.SetActive(realStaminaVisible);
+            }
 
             // real icon shows itself natively once real amount is above threshold; ghost stands in only while there's nothing real yet
             if (realExtraStamina > 0f)
@@ -211,14 +233,24 @@ namespace EffectPreview.Ui
             // covers both directions in one clamp: an item's own add (targetDelta) growing it, and a previewed petrify gain shrinking previewedMaxExtraStamina
             // out from under the real amount - ApplyTransition itself only surfaces the latter (a decrease), since the former already has its own ghost bar
             float afterExtraStamina = Mathf.Min(realExtraStamina + targetDelta, previewedMaxExtraStamina);
-            ApplyRealCountLabel(realExtraStamina, afterExtraStamina);
+            ApplyRealCountLabel(realExtraStamina, afterExtraStamina, settledLocalWidth);
         }
 
-        private void ApplyRealCountLabel(float realExtraStamina, float afterExtraStamina)
+        // snaps the outline back to resting instead of leaving it stale-expanded for the next reveal to reseed from
+        private void ResetOutlineToResting()
+        {
+            _displayedOutlineWidth = MinOutlineWidth;
+            _hasDisplayedOutlineWidth = true;
+            _extraBarOutline.sizeDelta = new Vector2(MinOutlineWidth, _extraBarOutline.sizeDelta.y);
+        }
+
+        private void ApplyRealCountLabel(float realExtraStamina, float afterExtraStamina, float settledLocalWidth)
         {
             if (Plugin.Instance.Cfg.ShowVanillaBarCounts.Value && realExtraStamina > 0.0005f)
             {
-                _realCountLabel.ApplyTransition(_extraBarStamina, realExtraStamina, afterExtraStamina, _vanillaForeground, _vanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                // world-space via lossyScale.x, so this doesn't need a live (still-animating) GetWorldCorners read
+                float predictedFitWidth = settledLocalWidth * _extraBarStamina.lossyScale.x;
+                _realCountLabel.ApplyTransition(_extraBarStamina, realExtraStamina, afterExtraStamina, _vanillaForeground, _vanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value, predictedFitWidth);
             }
             else
             {
@@ -234,7 +266,19 @@ namespace EffectPreview.Ui
             _displayedDelta = 0f;
             _lastRealExtraStamina = 0f;
             _manualWidthControl = false;
-            _hasDisplayedOutlineWidth = false;
+
+            // same don't-fight-native reasoning as the early-hide branch above
+            Character character = Character.localCharacter;
+            bool realActive = character != null && (character.data.extraStamina > 0f || character.data.petrifyAmount > 0);
+            if (realActive)
+            {
+                _hasDisplayedOutlineWidth = false;
+            }
+            else
+            {
+                ResetOutlineToResting();
+            }
+
             _fillGhost.Hide();
             _icon?.Hide();
             _waste.Hide();

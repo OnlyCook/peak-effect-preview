@@ -277,10 +277,14 @@ namespace EffectPreview.Ui
                 }
                 else if (character.data.currentStamina > 0.0005f)
                 {
+                    // clamped for display only, not written back - infiniteStam leaves currentStamina able to sit far above
+                    // GetMaxStamina() for a frame right after it wears off, see RESEARCH.md
+                    float displayedCurrentStamina = Mathf.Min(character.data.currentStamina, character.GetMaxStamina());
+
                     // the real, signed delta (not just its positive half like GhostStaminaArea's visual) - see RESEARCH.md
                     float projectedMaxStamina = Mathf.Max(0f, character.GetMaxStamina() - netStatusSumDelta);
-                    float projectedCurrentStamina = Mathf.Min(character.data.currentStamina, projectedMaxStamina);
-                    _staminaCountLabel.ApplyTransition(_bar.staminaBar, character.data.currentStamina, projectedCurrentStamina, _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                    float projectedCurrentStamina = Mathf.Min(displayedCurrentStamina, projectedMaxStamina);
+                    _staminaCountLabel.ApplyTransition(_bar.staminaBar, displayedCurrentStamina, projectedCurrentStamina, _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
                 }
                 else
                 {
