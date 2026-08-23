@@ -218,8 +218,9 @@ namespace EffectPreview.Ui
             private readonly bool _isRemoval;
             private readonly RectTransform _iconRtf;
             private readonly RectTransform _strikethroughRtf;
+            private readonly CanvasGroup _group;
 
-            private Strip(RectTransform rtf, Color fillColor, Image[] images, float[] baseAlphas, bool isRemoval, RectTransform iconRtf, RectTransform strikethroughRtf)
+            private Strip(RectTransform rtf, Color fillColor, Image[] images, float[] baseAlphas, bool isRemoval, RectTransform iconRtf, RectTransform strikethroughRtf, CanvasGroup group)
             {
                 Rtf = rtf;
                 FillColor = fillColor;
@@ -228,12 +229,21 @@ namespace EffectPreview.Ui
                 _isRemoval = isRemoval;
                 _iconRtf = iconRtf;
                 _strikethroughRtf = strikethroughRtf;
+                _group = group;
             }
 
             internal bool IsValid => Rtf != null;
 
             // diagonal line thickness as a fraction of the icon's shorter side
             private const float StrikethroughThicknessRatio = 0.16f;
+
+            // deactivating a strip drops its whole remaining width out of the badge row's layout in one frame, so this has to stay
+            // far below a pixel or the row visibly lurches, see RESEARCH.md's ghost strip hide jitter note
+            private const float HideBelowWidth = 0.05f;
+
+            // dismissal-only fade window, so the strip is gone from view long before its rect finishes shrinking, see RESEARCH.md
+            private const float FadeStartWidth = 20f;
+            private const float FadeEndWidth = 4f;
 
             internal static Strip CloneFrom(RectTransform sourceBadge, Transform insertAfter, bool isRemoval = false)
             {
@@ -266,17 +276,26 @@ namespace EffectPreview.Ui
                 // gray/white shared across every status, the icon glyph itself is what actually carries the per-status color)
                 RectTransform strikethroughRtf = isRemoval && icon != null ? CreateStrikethrough(icon.rectTransform, icon.color) : null;
 
+                // one group alpha covers every child at once, strikethrough included (that one isn't in the images array above, it gets created after it)
+                CanvasGroup group = go.GetComponent<CanvasGroup>();
+                if (group == null)
+                {
+                    group = go.AddComponent<CanvasGroup>();
+                }
+                group.blocksRaycasts = false;
+                group.interactable = false;
+
                 go.transform.SetSiblingIndex(insertAfter.GetSiblingIndex() + 1);
                 go.SetActive(false);
-                return new Strip(go.GetComponent<RectTransform>(), fillColor, images, baseAlphas, isRemoval, icon != null ? icon.rectTransform : null, strikethroughRtf);
+                return new Strip(go.GetComponent<RectTransform>(), fillColor, images, baseAlphas, isRemoval, icon != null ? icon.rectTransform : null, strikethroughRtf, group);
             }
 
             internal void Apply(float targetWidth, float lerpStep)
             {
-                float current = Rtf.gameObject.activeSelf ? Rtf.sizeDelta.x : 0f;
+                bool wasActive = Rtf.gameObject.activeSelf;
+                float current = wasActive ? Rtf.sizeDelta.x : 0f;
 
-                // lerp toward 0 before deactivating instead of snapping off instantly; a few px is already invisible
-                if (targetWidth <= 0f && current < 4f)
+                if (targetWidth <= 0f && current < HideBelowWidth)
                 {
                     Hide();
                     return;
@@ -284,7 +303,22 @@ namespace EffectPreview.Ui
 
                 float newWidth = Mathf.Lerp(current, Mathf.Max(0f, targetWidth), lerpStep);
                 Rtf.sizeDelta = new Vector2(newWidth, Rtf.sizeDelta.y);
-                Rtf.gameObject.SetActive(true);
+                if (!wasActive)
+                {
+                    Rtf.gameObject.SetActive(true);
+                }
+
+                // only ever fades on the way out - a legitimately narrow strip (a small previewed amount) stays fully opaque however thin it is
+                float opacity = targetWidth > 0f ? 1f : Mathf.InverseLerp(FadeEndWidth, FadeStartWidth, newWidth);
+                if (_group != null && _group.alpha != opacity)
+                {
+                    _group.alpha = opacity;
+                }
+
+                if (opacity <= 0f)
+                {
+                    return;
+                }
 
                 if (_isRemoval)
                 {
@@ -320,7 +354,6 @@ namespace EffectPreview.Ui
                 }
 
                 _strikethroughRtf.sizeDelta = new Vector2(side * 1.41421356f, side * StrikethroughThicknessRatio);
-                _strikethroughRtf.localRotation = Quaternion.Euler(0f, 0f, 45f);
             }
 
             // parented under the icon itself so it always shares the icon's position/scale; size is (re)synced every Apply via UpdateStrikethrough
@@ -331,6 +364,7 @@ namespace EffectPreview.Ui
                 rtf.SetParent(iconRtf, worldPositionStays: false);
                 rtf.anchorMin = (rtf.anchorMax = (rtf.pivot = new Vector2(0.5f, 0.5f)));
                 rtf.anchoredPosition = Vector2.zero;
+                rtf.localRotation = Quaternion.Euler(0f, 0f, 45f);
 
                 Image image = go.GetComponent<Image>();
                 image.color = tintColor;

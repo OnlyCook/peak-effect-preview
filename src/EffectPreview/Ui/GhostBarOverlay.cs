@@ -27,6 +27,7 @@ namespace EffectPreview.Ui
 
         private readonly Dictionary<CharacterAfflictions.STATUSTYPE, GhostBadge> _statusGhosts = new Dictionary<CharacterAfflictions.STATUSTYPE, GhostBadge>();
         private readonly Dictionary<CharacterAfflictions.STATUSTYPE, float> _dynamicHealBreakdown = new Dictionary<CharacterAfflictions.STATUSTYPE, float>();
+        private readonly HashSet<CharacterAfflictions.STATUSTYPE> _netDeltaVisited = new HashSet<CharacterAfflictions.STATUSTYPE>();
         private GhostExtraStaminaArea _extraStaminaArea;
         private GhostPetrifyArea _petrifyArea;
         private GhostStaminaArea _staminaArea;
@@ -370,7 +371,8 @@ namespace EffectPreview.Ui
         private float ComputeNetStatusSumDelta(Character character, Preview.ItemPreview preview)
         {
             float total = 0f;
-            var visited = new HashSet<CharacterAfflictions.STATUSTYPE>();
+            HashSet<CharacterAfflictions.STATUSTYPE> visited = _netDeltaVisited;
+            visited.Clear();
             foreach (CharacterAfflictions.STATUSTYPE type in preview.StatusIncreases.Keys)
             {
                 if (visited.Add(type))
