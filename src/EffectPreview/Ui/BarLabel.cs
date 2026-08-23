@@ -72,10 +72,10 @@ namespace EffectPreview.Ui
             return new BarLabel(text);
         }
 
-        // rounds to the same 0-100 "count" scale the mod's status fractions represent (0.10 -> "10")
+        // truncates to the same 0-100 "count" scale the mod's status fractions represent (0.10 -> "10")
         internal static string FormatCount(float fraction)
         {
-            return Mathf.RoundToInt(fraction * 100f).ToString();
+            return Mathf.FloorToInt(fraction * 100f).ToString();
         }
 
         // lightly translucent version of a raw fill color, so a ghost label still reads as "ghost" without losing legibility the way the ghost bars can

@@ -279,12 +279,19 @@ namespace EffectPreview.Ui
                 {
                     // clamped for display only, not written back - infiniteStam leaves currentStamina able to sit far above
                     // GetMaxStamina() for a frame right after it wears off, see RESEARCH.md
-                    float displayedCurrentStamina = Mathf.Min(character.data.currentStamina, character.GetMaxStamina());
+                    float maxStamina = character.GetMaxStamina();
+                    float displayedCurrentStamina = Mathf.Min(character.data.currentStamina, maxStamina);
 
                     // the real, signed delta (not just its positive half like GhostStaminaArea's visual) - see RESEARCH.md
-                    float projectedMaxStamina = Mathf.Max(0f, character.GetMaxStamina() - netStatusSumDelta);
+                    float projectedMaxStamina = Mathf.Max(0f, maxStamina - netStatusSumDelta);
                     float projectedCurrentStamina = Mathf.Min(displayedCurrentStamina, projectedMaxStamina);
-                    _staminaCountLabel.ApplyTransition(_bar.staminaBar, displayedCurrentStamina, projectedCurrentStamina, _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+
+                    // staminaBar's own rect is still lerping toward the stale (pre-clamp) currentStamina for a few frames right after infiniteStam ends
+                    // since the clamp only lands on the next FixedUpdate regen tick, not synchronously;
+                    // anchor to maxStaminaBar instead while thats happening, it isn't affected by the same lag
+                    // and matches the clamped display value exactly in that state (weird but works)
+                    RectTransform positionTarget = character.data.currentStamina > maxStamina ? _bar.maxStaminaBar : _bar.staminaBar;
+                    _staminaCountLabel.ApplyTransition(positionTarget, displayedCurrentStamina, projectedCurrentStamina, _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
                 }
                 else
                 {

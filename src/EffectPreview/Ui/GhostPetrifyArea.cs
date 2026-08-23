@@ -17,6 +17,10 @@ namespace EffectPreview.Ui
         // icon hides on its own short timer instead of waiting for the bar's asymptotic lerp to cross HiddenThreshold
         private const float IconHideDelay = 0.2f;
 
+        // lerp only approaches its target close, never quite landing on it exactly
+        // so this value just snaps to the exact target based on how small the bar is now (this is crooked but works well enough)
+        private const float DisplayedDeltaSnapEpsilon = 0.003f;
+
         private readonly RectTransform _petrifyRtf;
         private readonly GhostSegment _ghost;
         private readonly GhostSegment _decreaseGhost;
@@ -123,6 +127,10 @@ namespace EffectPreview.Ui
 
             float targetDelta = delta > 0f ? delta : 0f;
             _displayedDelta = Mathf.Lerp(_displayedDelta, targetDelta, lerpStep);
+            if (Mathf.Abs(_displayedDelta - targetDelta) < DisplayedDeltaSnapEpsilon)
+            {
+                _displayedDelta = targetDelta;
+            }
 
             _timeSinceTargetZero = targetDelta > 0f ? 0f : _timeSinceTargetZero + Time.deltaTime;
 
