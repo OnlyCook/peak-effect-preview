@@ -35,9 +35,14 @@ namespace EffectPreview
                                                "Show a marker on the ghost preview when the held item's effect would only be partially applied (some of it wasted).");
             EnableRemovalBlink = config.Bind("General", "enable-removal-blink", true,
                                              "Pulse the ghost bar for anything the held item would remove, instead of showing it as a steady translucent bar.");
-            ShowGhostBarCounts = config.Bind("General", "show-ghost-bar-counts", false,
+#if BARS_DEFAULT_ON
+            const bool barCountsDefault = true;
+#else
+            const bool barCountsDefault = false;
+#endif
+            ShowGhostBarCounts = config.Bind("General", "show-ghost-bar-counts", barCountsDefault,
                                              "Show a number on each ghost preview bar (this mod's own) for how much it would add or remove.");
-            ShowVanillaBarCounts = config.Bind("General", "show-vanilla-bar-counts", false,
+            ShowVanillaBarCounts = config.Bind("General", "show-vanilla-bar-counts", barCountsDefault,
                                                "Show a number on the game's own (non-ghost) bars for their current amount.");
             BarCountFontScale = config.Bind("General", "bar-count-font-scale", 1f,
                                             new ConfigDescription("Multiplier applied on top of the automatic size-to-fit bar scaling used by both ghost/vanilla bar count numbers.",

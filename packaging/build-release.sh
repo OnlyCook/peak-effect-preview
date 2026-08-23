@@ -18,11 +18,14 @@
 # r2modman installs the whole package into BepInEx/plugins/<Team>-EffectPreview/,
 # so a root-level DLL lands correctly and BepInEx loads it.
 #
-# Also writes a Nexus Mods distribution to
-# dist/nexus/EffectPreview-<version>-nexus.zip, which is the same file set as
-# the Thunderstore zip but nested one level under an OnlyCook-EffectPreview/
+# Also writes two Nexus Mods distributions, each the same file set as the
+# Thunderstore zip but nested one level under an OnlyCook-EffectPreview/
 # folder, so extracting it straight into BepInEx/plugins/ produces the
-# correct layout for a manual install.
+# correct layout for a manual install:
+#     dist/nexus/EffectPreview-<version>-nexus.zip (normal defaults)
+#     dist/nexus/EffectPreview-<version>-nexus-bars-on.zip (ShowGhostBarCounts
+# and ShowVanillaBarCounts default to true, via the BARS_DEFAULT_ON
+# compile-time define in PluginConfig.cs)
 #
 # Usage:  bash packaging/build-release.sh
 set -euo pipefail
@@ -89,16 +92,37 @@ rm -f "$OUT"
 echo "Wrote $OUT"
 unzip -l "$OUT"
 
-# 5. Nexus dist: same file set, nested under a mod-name folder so a manual
-#    extract into BepInEx/plugins/ lands correctly.
+# 5. Nexus dists: same file set as the Thunderstore zip, nested under a
+#    mod-name folder so a manual extract into BepInEx/plugins/ lands
+#    correctly. Builds one zip per DLL passed in.
 NEXUS_DIST="$DIST/nexus"
 mkdir -p "$NEXUS_DIST"
-NEXUS_STAGE="$(mktemp -d)"
-trap 'rm -rf "$STAGE" "$NEXUS_STAGE"' EXIT
-mkdir -p "$NEXUS_STAGE/$NEXUS_FOLDER"
-cp -r "$STAGE/." "$NEXUS_STAGE/$NEXUS_FOLDER/"
-NEXUS_OUT="$NEXUS_DIST/EffectPreview-$VERSION-nexus.zip"
-rm -f "$NEXUS_OUT"
-( cd "$NEXUS_STAGE" && zip -r -q "$NEXUS_OUT" . )
-echo "Wrote $NEXUS_OUT"
-unzip -l "$NEXUS_OUT"
+
+package_nexus_zip() {
+  local dll="$1" suffix="$2"
+  local stage nexus_stage out
+  stage="$(mktemp -d)"; nexus_stage="$(mktemp -d)"
+  trap "rm -rf '$stage' '$nexus_stage'" RETURN
+  cp "$PKG/manifest.json" "$PKG/icon.png" "$PKG/README.md" "$PKG/CHANGELOG.md" "$stage/"
+  [[ -f "$REPO_ROOT/LICENSE" ]] && cp "$REPO_ROOT/LICENSE" "$stage/LICENSE"
+  cp "$dll" "$stage/EffectPreview.dll"
+  mkdir -p "$nexus_stage/$NEXUS_FOLDER"
+  cp -r "$stage/." "$nexus_stage/$NEXUS_FOLDER/"
+  out="$NEXUS_DIST/EffectPreview-$VERSION$suffix.zip"
+  rm -f "$out"
+  ( cd "$nexus_stage" && zip -r -q "$out" . )
+  echo "Wrote $out"
+  unzip -l "$out"
+}
+
+package_nexus_zip "$DLL" "-nexus"
+
+# 5.5. Bars-on variant: rebuild with ShowGhostBarCounts / ShowVanillaBarCounts
+#      defaulting to true (BARS_DEFAULT_ON), for players who want the bar
+#      count numbers on out of the box
+echo "Building bars-on variant..."
+dotnet build "$PROJ/EffectPreview.csproj" -c Release -p:DefineConstants=BARS_DEFAULT_ON >/dev/null
+BARS_ON_DLL="$PROJ/bin/Release/EffectPreview.dll"
+[[ -f "$BARS_ON_DLL" ]] || { echo "ERROR: bars-on build output not found: $BARS_ON_DLL" >&2; exit 1; }
+
+package_nexus_zip "$BARS_ON_DLL" "-nexus-bars-on"
