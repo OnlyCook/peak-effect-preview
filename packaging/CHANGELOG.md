@@ -6,7 +6,7 @@
 - Fixed *Petrify* label flickering while the preview was the only effect present in the bonus stamina bar.
 - Fixed the infinite stamina label from flickering to show nonsensical values for a single frame. Also made the label switching anchoring mechanics more robust which should fix rarer but similar issues.
 - Fixed the Scout's Initiative amulet from showing an incorrect petrify count in certain cases.
-- Optimized certain code where I put unnecessary work on delta time (we don't talk about that though).
+- Optimized certain code where I did some questionable things per frame (we don't talk about that though).
 
 ## 0.1.0
 
