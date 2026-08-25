@@ -16,7 +16,8 @@ namespace EffectPreview
         internal ConfigEntry<bool> EnablePlayerEntityPreviews;
         internal ConfigEntry<bool> EnableCookingPreview;
         internal ConfigEntry<KeyCode> CookingPreviewKey;
-        internal ConfigEntry<bool> DisableWeightPreview;
+        internal ConfigEntry<bool> EnableWeightPreview;
+        internal ConfigEntry<bool> EnableTimedUsagePreview;
 
         internal PluginConfig(ConfigFile config)
         {
@@ -26,8 +27,10 @@ namespace EffectPreview
                                                     "Show a preview when empty-handed and able to interact with a world object that changes your status effects (unlit campfires, ancient luggage).");
             EnablePlayerEntityPreviews = config.Bind("General", "enable-player-entity-previews", true,
                                                      "Show a preview when empty-handed and able to interact with a physical Thorn/Arrow stuck on your own body.");
-            DisableWeightPreview = config.Bind("General", "disable-weight-preview", false,
-                                               "Never calculate or preview the Weight status effect at all, as if this mod didn't touch it.");
+            EnableWeightPreview = config.Bind("General", "enable-weight-preview", true,
+                                               "Whether to calculate and preview the Weight status effect.");
+            EnableTimedUsagePreview = config.Bind("General", "enable-timed-usage-preview", true,
+                                               "While holding certain items that remove status effect based on duration used, show a struck-through status icon for any status effect the item could fully remove if fully used, or both icons side by side if only partially.");
             EnableCookingPreview = config.Bind("General", "enable-cooking-preview", true,
                                                "While holding an item you're able to cook (near a lit campfire or portable stove), hold the cooking preview key to preview what its next cook stage would do instead of its current stage.");
             CookingPreviewKey = config.Bind("General", "cooking-preview-key", KeyCode.C,

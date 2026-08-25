@@ -232,7 +232,7 @@ namespace EffectPreview.Preview
                 preview.AddStatus(entry.Key, entry.Value);
             }
 
-            if ((wouldConsume || pitonPlaceable) && !Plugin.Instance.Cfg.DisableWeightPreview.Value)
+            if ((wouldConsume || pitonPlaceable) && Plugin.Instance.Cfg.EnableWeightPreview.Value)
             {
                 AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Weight, WeightDeltaOnConsume(item, character));
             }
@@ -420,6 +420,10 @@ namespace EffectPreview.Preview
             else if (affliction is Affliction_AdjustDrowsyOverTime drowsyOverTime)
             {
                 AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Drowsy, drowsyOverTime.statusPerSecond * drowsyOverTime.totalTime);
+            }
+            else if (affliction is Affliction_AdjustColdOverTime coldOverTime)
+            {
+                AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Cold, coldOverTime.statusPerSecond * coldOverTime.totalTime);
             }
         }
     }

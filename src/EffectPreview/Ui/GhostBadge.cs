@@ -19,6 +19,7 @@ namespace EffectPreview.Ui
         private readonly BarLabel _decreaseCountLabel;
         private readonly BarLabel _increaseCountLabel;
         private readonly BarLabel _realCountLabel;
+        private readonly GhostStatusCapIcon _capIcon;
         private readonly Color _vanillaForeground;
         private readonly Color _vanillaOutline;
         private readonly Color _ghostForeground;
@@ -27,7 +28,7 @@ namespace EffectPreview.Ui
         private float _realDisplayedWidth;
 
         private GhostBadge(RectTransform realRtf, GameObject realIcon, Strip decreaseGhost, Strip increaseGhost, WasteIndicator decreaseWaste, WasteIndicator increaseWaste,
-            BarLabel decreaseCountLabel, BarLabel increaseCountLabel, BarLabel realCountLabel)
+            BarLabel decreaseCountLabel, BarLabel increaseCountLabel, BarLabel realCountLabel, GhostStatusCapIcon capIcon)
         {
             _realRtf = realRtf;
             _realIcon = realIcon;
@@ -38,6 +39,7 @@ namespace EffectPreview.Ui
             _decreaseCountLabel = decreaseCountLabel;
             _increaseCountLabel = increaseCountLabel;
             _realCountLabel = realCountLabel;
+            _capIcon = capIcon;
 
             _vanillaForeground = decreaseGhost.FillColor;
             _vanillaForeground.a = 1f;
@@ -47,7 +49,7 @@ namespace EffectPreview.Ui
         }
 
         internal bool IsValid => _realRtf != null && _decreaseGhost.IsValid && _increaseGhost.IsValid && _decreaseWaste.IsValid && _increaseWaste.IsValid
-            && _decreaseCountLabel.IsValid && _increaseCountLabel.IsValid && _realCountLabel.IsValid;
+            && _decreaseCountLabel.IsValid && _increaseCountLabel.IsValid && _realCountLabel.IsValid && (_capIcon == null || _capIcon.IsValid);
 
         internal static GhostBadge Create(BarAffliction realAffliction, TMP_FontAsset font, Material fontMaterial)
         {
@@ -59,9 +61,26 @@ namespace EffectPreview.Ui
             BarLabel decreaseCountLabel = BarLabel.Create(realBadge.parent, font, fontMaterial);
             BarLabel increaseCountLabel = BarLabel.Create(realBadge.parent, font, fontMaterial);
             BarLabel realCountLabel = BarLabel.Create(realBadge.parent, font, fontMaterial);
+            GhostStatusCapIcon capIcon = GhostStatusCapIcon.Create(realAffliction.icon);
 
             GameObject realIcon = realAffliction.icon != null ? realAffliction.icon.gameObject : null;
-            return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost, decreaseWaste, increaseWaste, decreaseCountLabel, increaseCountLabel, realCountLabel);
+            return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost, decreaseWaste, increaseWaste, decreaseCountLabel, increaseCountLabel, realCountLabel, capIcon);
+        }
+
+        // decreaseActive: this frame's normal ghost-bar decrease (ApplyWidths) is already controlling the real icon's
+        // visibility for this status, so the two systems don't fight over the same icon
+        internal void ApplyRemovalCap(float liveValue, float cap, bool decreaseActive)
+        {
+            if (_capIcon == null)
+            {
+                return;
+            }
+            if (decreaseActive || cap <= 0f || liveValue <= 0f)
+            {
+                _capIcon.Hide();
+                return;
+            }
+            _capIcon.Apply(fullyRemovable: liveValue <= cap);
         }
 
         // the row this badge lives in (shared by every affliction badge, and by maxStaminaBar at sibling 0) - callers use this to do exactly
@@ -201,6 +220,7 @@ namespace EffectPreview.Ui
             _decreaseCountLabel.Hide();
             _increaseCountLabel.Hide();
             _realCountLabel.Hide();
+            _capIcon?.Hide();
             if (_realIcon != null)
             {
                 _realIcon.SetActive(true);

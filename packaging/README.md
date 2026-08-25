@@ -28,6 +28,6 @@ Config file: `BepInEx/config/OnlyCook.EffectPreview.cfg`.
 
 <summary><b>View config information</b></summary>
 
-- **General**: master preview switch, world-object previews (unlit campfires, ancient luggage), player-entity previews (Thorn/Arrow stuck on you), cooking preview toggle and its key (default **`C`**), sticky Thorn/Arrow removal, waste indicator, removal blink, ghost/vanilla bar count numbers and their font scale.
+- **General**: master preview switch, world-object previews (unlit campfires, ancient luggage), player-entity previews (Thorn/Arrow stuck on you), weight preview, cooking preview toggle and its key (default **`C`**), sticky Thorn/Arrow removal, waste indicator, removal blink, ghost/vanilla bar count numbers and their font scale.
 
 </details>

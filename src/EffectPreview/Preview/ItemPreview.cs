@@ -29,6 +29,9 @@ namespace EffectPreview.Preview
         // Affliction_Invincibility (Fortified Milk, Scout's Tenacity) - just an on/off, no magnitude to compute
         internal bool GrantsInvincibilityOnUse;
 
+        // Lantern / Faerie Lantern / Candlestick / Remedy Fungus / Heat Pack remove status effect per second while active
+        internal readonly Dictionary<CharacterAfflictions.STATUSTYPE, float> StatusRemovalCaps = new Dictionary<CharacterAfflictions.STATUSTYPE, float>();
+
         internal void AddStatus(CharacterAfflictions.STATUSTYPE type, float amount)
         {
             if (amount > 0f)

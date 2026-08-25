@@ -259,6 +259,15 @@ namespace EffectPreview.Ui
             {
                 GetStatusPreview(character, preview, entry.Key, out float live, out float decrease, out float increase, out float statusCap);
                 entry.Value.ApplyOverlays(live, decrease, increase, statusCap, unifiedWasteHeight);
+
+                float removalCap = 0f;
+                bool capPreviewEnabled = Plugin.Instance.Cfg.EnableTimedUsagePreview.Value;
+                if (capPreviewEnabled)
+                {
+                    preview.StatusRemovalCaps.TryGetValue(entry.Key, out removalCap);
+                }
+                bool decreaseActive = Mathf.Min(decrease, live) > 0f;
+                entry.Value.ApplyRemovalCap(live, capPreviewEnabled ? removalCap : 0f, decreaseActive);
             }
 
             if (_staminaCountLabel != null)

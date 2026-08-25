@@ -70,7 +70,7 @@ namespace EffectPreview.Preview
                 && Input.GetKey(Plugin.Instance.Cfg.CookingPreviewKey.Value)
                 && IsAbleToCookHeldItem(item, character);
 
-            bool pitonPlaceable = !Plugin.Instance.Cfg.DisableWeightPreview.Value && IsPitonPlaceable(item, character);
+            bool pitonPlaceable = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsPitonPlaceable(item, character);
 
             // ReferenceEquals, not ==: Unity's == treats a destroyed object as null, which would mask an item->null transition
             if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount && uses == _lastUses
@@ -84,9 +84,17 @@ namespace EffectPreview.Preview
             _lastUses = uses;
             _lastCookingPreviewActive = cookingPreviewActive;
             _lastPitonPlaceable = pitonPlaceable;
-            Common.Safe.Run("HeldItemPreviewTracker.Compute", () => Current = cookingPreviewActive
-                ? CookingPreviewCalculator.Compute(item, character)
-                : ItemPreviewCalculator.Compute(item, character, isActionActive: null, pitonPlaceable));
+            Common.Safe.Run("HeldItemPreviewTracker.Compute", () =>
+            {
+                ItemPreview preview = cookingPreviewActive
+                    ? CookingPreviewCalculator.Compute(item, character)
+                    : ItemPreviewCalculator.Compute(item, character, isActionActive: null, pitonPlaceable);
+                if (Plugin.Instance.Cfg.EnableTimedUsagePreview.Value)
+                {
+                    TimedUsagePreviewCalculator.Compute(item, preview);
+                }
+                Current = preview;
+            });
         }
 
         // mirrors Player.RaycastClimbingSpikeStart and the climbingSpikeCount gate updateClimbingSpikeUse checks before it'll even try hammering one in
