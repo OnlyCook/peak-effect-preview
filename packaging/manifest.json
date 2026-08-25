@@ -1,6 +1,6 @@
 {
     "name": "Effect_Preview",
-    "version_number": "0.2.0",
+    "version_number": "1.0.0",
     "website_url": "https://github.com/OnlyCook/peak-effect-preview",
     "description": "Hold an item to get a live preview on how it will change your status effects before even using it",
     "dependencies": [

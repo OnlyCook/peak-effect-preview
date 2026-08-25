@@ -48,8 +48,6 @@ Config file: `BepInEx/config/OnlyCook.EffectPreview.cfg`.
 
 ## For developers
 
-- [`ROADMAP.md`](ROADMAP.md): full feature spec, phased plan, status, handoff notes.
-
 Build:
 ```bash
 cd src/EffectPreview

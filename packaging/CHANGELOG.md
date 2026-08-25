@@ -1,3 +1,9 @@
+## 1.0.0
+
+Full release.
+
+- 
+
 ## 0.2.0
 
 - Fixed snappy ghost bar removal issue that would cause all other bars to jitter slightly (now buttery smooth).

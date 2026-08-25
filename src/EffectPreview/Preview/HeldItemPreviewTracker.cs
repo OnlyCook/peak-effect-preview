@@ -12,6 +12,7 @@ namespace EffectPreview.Preview
         private int _lastCookedAmount;
         private int _lastUses;
         private bool _lastCookingPreviewActive;
+        private bool _lastPitonPlaceable;
         private Object _lastEmptyHandedSource;
         // disambiguates "no source yet computed" from "computed, found nothing" - null is valid for both
         private bool _lastEmptyHandedSourceValid;
@@ -39,6 +40,7 @@ namespace EffectPreview.Preview
                 _lastCookedAmount = 0;
                 _lastUses = 0;
                 _lastCookingPreviewActive = false;
+                _lastPitonPlaceable = false;
                 _lastEmptyHandedSource = null;
                 _lastEmptyHandedSourceValid = false;
                 return;
@@ -68,9 +70,11 @@ namespace EffectPreview.Preview
                 && Input.GetKey(Plugin.Instance.Cfg.CookingPreviewKey.Value)
                 && IsAbleToCookHeldItem(item, character);
 
+            bool pitonPlaceable = !Plugin.Instance.Cfg.DisableWeightPreview.Value && IsPitonPlaceable(item, character);
+
             // ReferenceEquals, not ==: Unity's == treats a destroyed object as null, which would mask an item->null transition
             if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount && uses == _lastUses
-                && cookingPreviewActive == _lastCookingPreviewActive)
+                && cookingPreviewActive == _lastCookingPreviewActive && pitonPlaceable == _lastPitonPlaceable)
             {
                 return;
             }
@@ -79,9 +83,29 @@ namespace EffectPreview.Preview
             _lastCookedAmount = cookedAmount;
             _lastUses = uses;
             _lastCookingPreviewActive = cookingPreviewActive;
+            _lastPitonPlaceable = pitonPlaceable;
             Common.Safe.Run("HeldItemPreviewTracker.Compute", () => Current = cookingPreviewActive
                 ? CookingPreviewCalculator.Compute(item, character)
-                : ItemPreviewCalculator.Compute(item, character));
+                : ItemPreviewCalculator.Compute(item, character, isActionActive: null, pitonPlaceable));
+        }
+
+        // mirrors Player.RaycastClimbingSpikeStart and the climbingSpikeCount gate updateClimbingSpikeUse checks before it'll even try hammering one in
+        private static bool IsPitonPlaceable(Item item, Character character)
+        {
+            if (character.data.climbingSpikeCount <= 0)
+            {
+                return false;
+            }
+            ClimbingSpikeComponent spike = item.GetComponent<ClimbingSpikeComponent>();
+            if (spike == null || MainCamera.instance == null)
+            {
+                return false;
+            }
+            float maxDistance = character.data.isClimbingAnything
+                ? spike.climbingSpikeStartDistance
+                : spike.climbingSpikeStartDistanceGrounded;
+            Transform cameraTransform = MainCamera.instance.transform;
+            return Physics.Raycast(cameraTransform.position, cameraTransform.forward, out _, maxDistance, HelperFunctions.GetMask(HelperFunctions.LayerType.TerrainMap));
         }
 
         // holding the cooking preview key while looking at a lit campfire you're able to cook this item on right now,
