@@ -11,8 +11,8 @@ namespace EffectPreview.Ui
         private static readonly Vector2 ShownExtraBarSize = new Vector2(45f, 45f);
         private const float OutlinePadding = 12f;
         private const float MinOutlineWidth = 20f;
-        private const float ShowDuration = 0.25f;
-        private const float HideDuration = 0.2f;
+        private const float ShowDuration = 0.34f;
+        private const float HideDuration = 0.27f;
         private const float HiddenThreshold = 0.0001f;
 
         // hides the doubled-border seam where the ghost clone butts against the real fill
@@ -22,10 +22,14 @@ namespace EffectPreview.Ui
         private const float RightEdgePaddingGhostOnly = 9f;
         private const float RightEdgePaddingWithReal = 1f;
 
-        private const float ShrinkLerpRate = 10f;
-        private const float ShrinkMaxLerpStep = 0.1f;
-        private const float GrowLerpRate = 40f;
-        private const float GrowMaxLerpStep = 0.5f;
+        private const float ShrinkLerpRate = 14f;
+        private const float ShrinkMaxLerpStep = 0.14f;
+        private const float GrowLerpRate = 50f;
+        private const float GrowMaxLerpStep = 0.6f;
+
+        // the tween never quite lands on its target mid-flight (eased curve, or retargeted before completing)
+        // so the label snaps to the exact target based on how close the animation is now (mirrors GhostPetrifyArea's DisplayedDeltaSnapEpsilon)
+        private const float DisplayedDeltaSnapEpsilon = 0.003f;
 
         private readonly RectTransform _extraBar;
         private readonly RectTransform _extraBarStamina;
@@ -45,6 +49,11 @@ namespace EffectPreview.Ui
 
         private Tween _tween;
         private float _tweenTarget;
+
+        // drives the actual bar/ghost animation, tweens continuously and never snaps
+        private float _animatedDelta;
+
+        // drives the count label only, snaps early per DisplayedDeltaSnapEpsilon
         private float _displayedDelta;
         private float _lastRealExtraStamina;
 
@@ -89,9 +98,9 @@ namespace EffectPreview.Ui
             float realGrowth = realExtraStamina - _lastRealExtraStamina;
             if (realGrowth > 0.0001f)
             {
-                _displayedDelta = Mathf.Max(0f, _displayedDelta - realGrowth);
+                _animatedDelta = Mathf.Max(0f, _animatedDelta - realGrowth);
                 _tween?.Kill();
-                _tweenTarget = _displayedDelta;
+                _tweenTarget = _animatedDelta;
                 delta = 0f;
                 _manualWidthControl = true;
                 _manualDisplayedWidth = _extraBarStamina.sizeDelta.x;
@@ -105,12 +114,14 @@ namespace EffectPreview.Ui
 
             if (!Mathf.Approximately(targetDelta, _tweenTarget))
             {
-                bool growing = targetDelta > _displayedDelta;
+                bool growing = targetDelta > _animatedDelta;
                 _tween?.Kill();
                 _tweenTarget = targetDelta;
-                _tween = DOTween.To(() => _displayedDelta, x => _displayedDelta = x, targetDelta, growing ? ShowDuration : HideDuration)
+                _tween = DOTween.To(() => _animatedDelta, x => _animatedDelta = x, targetDelta, growing ? ShowDuration : HideDuration)
                     .SetEase(growing ? Ease.OutCubic : Ease.InCubic);
             }
+
+            _displayedDelta = Mathf.Abs(_animatedDelta - _tweenTarget) < DisplayedDeltaSnapEpsilon ? _tweenTarget : _animatedDelta;
 
             float realWidth = Mathf.Max(0f, realExtraStamina) * fullLocalWidth;
             float overrideTargetWidth = Mathf.Min(realWidth, previewedMaxExtraStamina * fullLocalWidth);
@@ -120,7 +131,7 @@ namespace EffectPreview.Ui
             float settledLocalWidth = overridingNow ? overrideTargetWidth : realWidth;
 
             // petrifyGhostVisible (not just petrifyPreviewDelta>0) keeps the bar open until petrify's own ghost has visually faded, not just until its target hits 0
-            if (targetDelta <= 0f && _displayedDelta < HiddenThreshold && !overridingNow && !_manualWidthControl && !petrifyGhostVisible)
+            if (targetDelta <= 0f && _animatedDelta < HiddenThreshold && !overridingNow && !_manualWidthControl && !petrifyGhostVisible)
             {
                 _fillGhost.Hide();
                 _icon?.Hide();
@@ -184,7 +195,7 @@ namespace EffectPreview.Ui
                 }
             }
 
-            float displayedWidth = _displayedDelta * fullLocalWidth;
+            float displayedWidth = _animatedDelta * fullLocalWidth;
             // petrify sits pinned to the bar's right edge, so any petrify (real or previewed) needs the outline at fullLocalWidth to wrap around it
             bool petrifyPresentOrPreviewed = petrifyActive || petrifyGhostVisible;
             float outlineWidth = petrifyPresentOrPreviewed ? fullLocalWidth : realWidth + displayedWidth;
@@ -263,6 +274,7 @@ namespace EffectPreview.Ui
             _tween?.Kill();
             _tween = null;
             _tweenTarget = 0f;
+            _animatedDelta = 0f;
             _displayedDelta = 0f;
             _lastRealExtraStamina = 0f;
             _manualWidthControl = false;

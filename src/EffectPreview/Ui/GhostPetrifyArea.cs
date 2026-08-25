@@ -10,9 +10,9 @@ namespace EffectPreview.Ui
         private const float RightEdgePadding = 6f;
         private const float HiddenThreshold = 0.0001f;
 
-        // matches BarAffliction.UpdateAffliction()'s own lerp rate so the ghost reads as the same animation
-        private const float LerpRate = 10f;
-        private const float MaxLerpStep = 0.1f;
+        // deliberately slower than BarAffliction.UpdateAffliction()'s own native lerp rate
+        private const float LerpRate = 9f;
+        private const float MaxLerpStep = 0.09f;
 
         // icon hides on its own short timer instead of waiting for the bar's asymptotic lerp to cross HiddenThreshold
         private const float IconHideDelay = 0.2f;
@@ -36,6 +36,10 @@ namespace EffectPreview.Ui
         private readonly Color _ghostOutline;
         private readonly Vector3[] _cornerBuffer = new Vector3[4];
 
+        // drives the actual bar/ghost animation, lerps continuously and never snaps
+        private float _animatedDelta;
+
+        // drives the count label only, snaps early per DisplayedDeltaSnapEpsilon
         private float _displayedDelta;
         private float _timeSinceTargetZero;
 
@@ -65,7 +69,7 @@ namespace EffectPreview.Ui
             && _increaseCountLabel.IsValid && _decreaseCountLabel.IsValid && _realCountLabel.IsValid;
 
         // lets GhostExtraStaminaArea wait for this to actually fade before reclaiming the space petrify's border expansion held
-        internal float DisplayedDelta => _displayedDelta;
+        internal float DisplayedDelta => _animatedDelta;
 
         // realPetrifyActive: real segment/icon already shown natively, so only that one should be visible
         // rawDelta: the increase before GhostBarOverlay clamped it to petrifyRoom, used only to detect waste - delta itself stays the clamped value driving the ghost's own width
@@ -126,6 +130,7 @@ namespace EffectPreview.Ui
             }
 
             float targetDelta = delta > 0f ? delta : 0f;
+            _animatedDelta = Mathf.Lerp(_animatedDelta, targetDelta, lerpStep);
             _displayedDelta = Mathf.Lerp(_displayedDelta, targetDelta, lerpStep);
             if (Mathf.Abs(_displayedDelta - targetDelta) < DisplayedDeltaSnapEpsilon)
             {
@@ -134,8 +139,9 @@ namespace EffectPreview.Ui
 
             _timeSinceTargetZero = targetDelta > 0f ? 0f : _timeSinceTargetZero + Time.deltaTime;
 
-            if (targetDelta <= 0f && _displayedDelta < HiddenThreshold)
+            if (targetDelta <= 0f && _animatedDelta < HiddenThreshold)
             {
+                _animatedDelta = 0f;
                 _displayedDelta = 0f;
                 _ghost.Hide();
                 _icon?.Hide();
@@ -158,7 +164,7 @@ namespace EffectPreview.Ui
                 _icon?.Hide();
             }
 
-            float displayedWidth = _displayedDelta * fullLocalWidth;
+            float displayedWidth = _animatedDelta * fullLocalWidth;
 
             _petrifyRtf.GetWorldCorners(_cornerBuffer);
             float realLeftWorldX = _cornerBuffer[0].x;
@@ -204,6 +210,7 @@ namespace EffectPreview.Ui
 
         internal void Hide()
         {
+            _animatedDelta = 0f;
             _displayedDelta = 0f;
             _timeSinceTargetZero = IconHideDelay;
             _displayedShrinkWidth = 0f;
