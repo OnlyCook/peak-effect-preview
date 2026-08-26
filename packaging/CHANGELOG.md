@@ -6,8 +6,9 @@ Full release.
 - Added a config option to disable the weight preview.
 - Added a config option to toggle the jetpack gauge needle preview.
 - Made jetpack and vanilla bar count options independent of the master preview setting. Thanks to SAvGEDA for pointing this out!
-- Fixed Piton, Rope Spool, and Anti-Rope not showing a weight preview when they're usable.
+- Fixed Piton, Rope Spool, and Anti-Rope Spool not showing a weight preview when they're usable.
 - Fixed bonus stamina showing slightly off preview counts in rare cases.
+- Fixed many animations being driven by frame counts instead of delta time, resulting in slower animation speeds on lower fps.
 - Adjusted bonus stamina and Petrify animation speeds.
 
 ## 0.2.0

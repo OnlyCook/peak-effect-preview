@@ -11,8 +11,8 @@ namespace EffectPreview.Ui
         private const float HiddenThreshold = 0.0001f;
 
         // deliberately slower than BarAffliction.UpdateAffliction()'s own native lerp rate
-        private const float LerpRate = 9f;
-        private const float MaxLerpStep = 0.09f;
+        // tuned at 100fps
+        private const float LerpStep100Fps = 0.09f;
 
         // icon hides on its own short timer instead of waiting for the bar's asymptotic lerp to cross HiddenThreshold
         private const float IconHideDelay = 0.2f;
@@ -77,7 +77,7 @@ namespace EffectPreview.Ui
         // wasteHeight: the shared, unified waste-marker height every area uses (see WasteIndicator.MeasureHeight)
         internal void Apply(float fullLocalWidth, float delta, float rawDelta, float shrinkDelta, float currentPetrifyFraction, bool realPetrifyActive, float wasteHeight)
         {
-            float lerpStep = Mathf.Min(Time.deltaTime * LerpRate, MaxLerpStep);
+            float lerpStep = Common.AnimUtil.LerpStep(LerpStep100Fps);
 
             float shrinkMagnitude = Mathf.Clamp(shrinkDelta, 0f, currentPetrifyFraction);
             float shrinkTargetWidth = fullLocalWidth * shrinkMagnitude;

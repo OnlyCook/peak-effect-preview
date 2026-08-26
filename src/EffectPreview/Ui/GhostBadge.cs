@@ -7,8 +7,7 @@ namespace EffectPreview.Ui
     // splits a real BarAffliction badge into a shrunk real part plus decrease/increase ghost siblings, shown independently rather than netted together
     internal class GhostBadge
     {
-        private const float LerpRate = 10f;
-        private const float MaxLerpStep = 0.1f;
+        private const float LerpStep100Fps = 0.1f;
 
         private readonly RectTransform _realRtf;
         private readonly GameObject _realIcon;
@@ -92,7 +91,7 @@ namespace EffectPreview.Ui
         // the WHOLE row (every badge, plus maxStaminaBar) to have already settled this frame's widths first; see ApplyOverlays
         internal void ApplyWidths(float fullLocalWidth, float liveValue, float decreaseAmount, float increaseAmount)
         {
-            float lerpStep = Mathf.Min(Time.deltaTime * LerpRate, MaxLerpStep);
+            float lerpStep = Common.AnimUtil.LerpStep(LerpStep100Fps);
             float shrinkMagnitude = Mathf.Min(decreaseAmount, liveValue);
 
             if (shrinkMagnitude > 0f)

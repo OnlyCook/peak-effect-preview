@@ -5,8 +5,7 @@ namespace EffectPreview.Ui
     // shrinks maxStaminaBar/staminaBar to make room for previewed status increases (poison etc), mirroring GetMaxStamina() = 1 - statusSum
     internal class GhostStaminaArea
     {
-        private const float LerpRate = 10f;
-        private const float MaxLerpStep = 0.1f;
+        private const float LerpStep100Fps = 0.1f;
 
         private readonly RectTransform _maxRtf;
         private readonly RectTransform _curRtf;
@@ -32,7 +31,7 @@ namespace EffectPreview.Ui
                 return;
             }
 
-            float lerpStep = Mathf.Min(Time.deltaTime * LerpRate, MaxLerpStep);
+            float lerpStep = Common.AnimUtil.LerpStep(LerpStep100Fps);
             float targetMax = Mathf.Min(Mathf.Max(0f, trueMaxStamina * fullLocalWidth - totalPositiveDelta * fullLocalWidth), maxAllowedWidthPx);
             float targetCur = Mathf.Min(trueCurrentStamina * fullLocalWidth, targetMax);
 

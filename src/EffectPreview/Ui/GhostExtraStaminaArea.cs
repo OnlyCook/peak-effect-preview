@@ -22,10 +22,8 @@ namespace EffectPreview.Ui
         private const float RightEdgePaddingGhostOnly = 9f;
         private const float RightEdgePaddingWithReal = 1f;
 
-        private const float ShrinkLerpRate = 14f;
-        private const float ShrinkMaxLerpStep = 0.14f;
-        private const float GrowLerpRate = 50f;
-        private const float GrowMaxLerpStep = 0.6f;
+        private const float ShrinkLerpStep100Fps = 0.14f;
+        private const float GrowLerpStep100Fps = 0.6f;
 
         // the tween never quite lands on its target mid-flight (eased curve, or retargeted before completing)
         // so the label snaps to the exact target based on how close the animation is now (mirrors GhostPetrifyArea's DisplayedDeltaSnapEpsilon)
@@ -178,7 +176,7 @@ namespace EffectPreview.Ui
 
             if (overridingNow || _manualWidthControl)
             {
-                float lerpStep = Mathf.Min(Time.deltaTime * ShrinkLerpRate, ShrinkMaxLerpStep);
+                float lerpStep = Common.AnimUtil.LerpStep(ShrinkLerpStep100Fps);
                 if (!_manualWidthControl)
                 {
                     _manualDisplayedWidth = _extraBarStamina.sizeDelta.x;
@@ -208,8 +206,8 @@ namespace EffectPreview.Ui
             // grows fast so the border always stays ahead of whatever's expanding inside it (fill or petrify's ghost, from either edge); shrinks at the normal smooth pace since a briefly-oversized border is never a clipping risk
             bool outlineGrowing = outlineTarget > _displayedOutlineWidth;
             float outlineLerpStep = outlineGrowing
-                ? Mathf.Min(Time.deltaTime * GrowLerpRate, GrowMaxLerpStep)
-                : Mathf.Min(Time.deltaTime * ShrinkLerpRate, ShrinkMaxLerpStep);
+                ? Common.AnimUtil.LerpStep(GrowLerpStep100Fps)
+                : Common.AnimUtil.LerpStep(ShrinkLerpStep100Fps);
             _displayedOutlineWidth = Mathf.Lerp(_displayedOutlineWidth, outlineTarget, outlineLerpStep);
             _extraBarOutline.sizeDelta = new Vector2(_displayedOutlineWidth, _extraBarOutline.sizeDelta.y);
 
