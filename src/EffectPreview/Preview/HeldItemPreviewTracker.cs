@@ -15,6 +15,7 @@ namespace EffectPreview.Preview
         private int _lastFuelBucket;
         private bool _lastCookingPreviewActive;
         private bool _lastPitonPlaceable;
+        private bool _lastRopeSpoolAboutToDeplete;
         private Object _lastEmptyHandedSource;
         // disambiguates "no source yet computed" from "computed, found nothing" - null is valid for both
         private bool _lastEmptyHandedSourceValid;
@@ -40,6 +41,7 @@ namespace EffectPreview.Preview
                     _lastFuelBucket = 0;
                     _lastCookingPreviewActive = false;
                     _lastPitonPlaceable = false;
+                    _lastRopeSpoolAboutToDeplete = false;
                     _lastEmptyHandedSource = null;
                     _lastEmptyHandedSourceValid = false;
                 }
@@ -60,6 +62,7 @@ namespace EffectPreview.Preview
                 _lastFuelBucket = 0;
                 _lastCookingPreviewActive = false;
                 _lastPitonPlaceable = false;
+                _lastRopeSpoolAboutToDeplete = false;
                 _lastEmptyHandedSource = null;
                 _lastEmptyHandedSourceValid = false;
                 return;
@@ -90,6 +93,7 @@ namespace EffectPreview.Preview
                 && IsAbleToCookHeldItem(item, character);
 
             bool pitonPlaceable = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsPitonPlaceable(item, character);
+            bool ropeSpoolAboutToDeplete = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsRopeSpoolAboutToDeplete(item, character);
 
             // Lantern, Faerie Lantern, Candlestick toggle this on activate/deactivate
             bool flareActive = item.HasData(DataEntryKey.FlareActive) && item.GetData<BoolItemData>(DataEntryKey.FlareActive).Value;
@@ -101,6 +105,7 @@ namespace EffectPreview.Preview
             // ReferenceEquals, not ==: Unity's == treats a destroyed object as null, which would mask an item->null transition
             if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount && uses == _lastUses
                 && cookingPreviewActive == _lastCookingPreviewActive && pitonPlaceable == _lastPitonPlaceable
+                && ropeSpoolAboutToDeplete == _lastRopeSpoolAboutToDeplete
                 && flareActive == _lastFlareActive && fuelBucket == _lastFuelBucket)
             {
                 return;
@@ -111,13 +116,14 @@ namespace EffectPreview.Preview
             _lastUses = uses;
             _lastCookingPreviewActive = cookingPreviewActive;
             _lastPitonPlaceable = pitonPlaceable;
+            _lastRopeSpoolAboutToDeplete = ropeSpoolAboutToDeplete;
             _lastFlareActive = flareActive;
             _lastFuelBucket = fuelBucket;
             Common.Safe.Run("HeldItemPreviewTracker.Compute", () =>
             {
                 ItemPreview preview = cookingPreviewActive
                     ? CookingPreviewCalculator.Compute(item, character)
-                    : ItemPreviewCalculator.Compute(item, character, isActionActive: null, pitonPlaceable);
+                    : ItemPreviewCalculator.Compute(item, character, isActionActive: null, pitonPlaceable, ropeSpoolAboutToDeplete);
                 if (Plugin.Instance.Cfg.EnableTimedUsagePreview.Value)
                 {
                     TimedUsagePreviewCalculator.Compute(item, preview);
@@ -143,6 +149,26 @@ namespace EffectPreview.Preview
                 : spike.climbingSpikeStartDistanceGrounded;
             Transform cameraTransform = MainCamera.instance.transform;
             return Physics.Raycast(cameraTransform.position, cameraTransform.forward, out _, maxDistance, HelperFunctions.GetMask(HelperFunctions.LayerType.TerrainMap));
+        }
+
+        // mirrors RopeTier.Update's own anchor validity check (a valid anchor point within range, same raycast+distance test it runs once
+        // use is actually held) plus RopeSpool.Detach_Rpc's depletion math (RopeFuel -= placed segment length, Consume()s the whole item once what's left drops to <=2f)
+        private static bool IsRopeSpoolAboutToDeplete(Item item, Character character)
+        {
+            RopeSpool spool = item.GetComponent<RopeSpool>();
+            RopeTier ropeTier = item.GetComponent<RopeTier>();
+            if (spool == null || ropeTier == null || MainCamera.instance == null)
+            {
+                return false;
+            }
+            Transform cameraTransform = MainCamera.instance.transform;
+            Vector3 origin = cameraTransform.position;
+            RaycastHit hit = HelperFunctions.LineCheck(origin, origin + cameraTransform.forward * ropeTier.maxAnchorGhostDistance, HelperFunctions.LayerType.TerrainMap);
+            if (hit.collider == null || Vector3.Distance(hit.point, character.Center) >= ropeTier.maxAnchorDistance)
+            {
+                return false;
+            }
+            return spool.RopeFuel - spool.Segments <= 2f;
         }
 
         // holding the cooking preview key while looking at a lit campfire you're able to cook this item on right now,

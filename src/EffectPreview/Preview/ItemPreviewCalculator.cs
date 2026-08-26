@@ -55,7 +55,8 @@ namespace EffectPreview.Preview
 
         // isActionActive: lets CookingPreviewCalculator simulate a toggled ItemAction without mutating it, see RESEARCH.md
         // pitonPlaceable: HeldItemPreviewTracker's live raycast says this ClimbingSpikeComponent item could be hammered in right now
-        internal static ItemPreview Compute(Item item, Character character, Func<ItemAction, bool> isActionActive, bool pitonPlaceable = false)
+        // ropeSpoolAboutToDeplete: HeldItemPreviewTracker says placing the currently-selected rope length would use up the rest of this RopeSpool/AntiRopeSpool
+        internal static ItemPreview Compute(Item item, Character character, Func<ItemAction, bool> isActionActive, bool pitonPlaceable = false, bool ropeSpoolAboutToDeplete = false)
         {
             var preview = new ItemPreview();
             if (item == null || character == null)
@@ -232,7 +233,7 @@ namespace EffectPreview.Preview
                 preview.AddStatus(entry.Key, entry.Value);
             }
 
-            if ((wouldConsume || pitonPlaceable) && Plugin.Instance.Cfg.EnableWeightPreview.Value)
+            if ((wouldConsume || pitonPlaceable || ropeSpoolAboutToDeplete) && Plugin.Instance.Cfg.EnableWeightPreview.Value)
             {
                 AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Weight, WeightDeltaOnConsume(item, character));
             }

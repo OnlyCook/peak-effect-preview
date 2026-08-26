@@ -4,7 +4,9 @@ Full release.
 
 - Added support for duration based items (Lantern, Remedy Fungus, etc.) to show an icon-only preview. If such an item is held, only the icon of the designated status effect that is able to be affected by the item will change. Thanks to VanilaBOI for the suggestion!
 - Added a config option to disable the weight preview.
-- Fixed Piton not showing a weight preview when it's usable.
+- Added a config option to toggle the jetpack gauge needle preview.
+- Made jetpack and vanilla bar count options independent of the master preview setting. Thanks to SAvGEDA for pointing this out!
+- Fixed Piton, Rope Spool, and Anti-Rope not showing a weight preview when they're usable.
 - Fixed bonus stamina showing slightly off preview counts in rare cases.
 - Adjusted bonus stamina and Petrify animation speeds.
 
