@@ -14,6 +14,8 @@ Full release.
 - Added co-op support: Ritual Dagger and cannibalism now show previews when possible to use/do.
 - Fixed issue where spectating another player would cause the bonus stamina border to never grow/shrink.
 - Added compatibility with [FriendsInfo](https://thunderstore.io/c/peak/p/Serjik/FriendsInfo/) (or any of its forks; PeakStatsEx or PlayersInfo for example) so no conflicts between the mods occur.
+- Organized config options by separating them into 4 separate config sections. This resets nearly all config settings to their default values so be aware of that.
+- Fixed ghost status effect icons appearing too large on certain displays.
 
 ## 0.2.0
 

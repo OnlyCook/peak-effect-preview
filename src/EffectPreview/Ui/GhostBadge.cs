@@ -276,6 +276,14 @@ namespace EffectPreview.Ui
                     Object.Destroy(driver);
                 }
 
+                // icon.transform.localScale can be mid-flight through BarAffliction.OnEnable()'s DOScale(1f, OutElastic) pop-in
+                // at the exact instant we clone it (that tween overshoots past 1 before settling)
+                // reset or the ghost freezes at whatever scale it happened to catch
+                if (icon != null)
+                {
+                    icon.transform.localScale = Vector3.one;
+                }
+
                 // sampled before the tint loop below touches these colors, so this is still the vanilla, undimmed fill color
                 Color fillColor = WasteIndicator.SampleFillColor(go, icon);
 
