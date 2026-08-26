@@ -27,7 +27,7 @@ namespace EffectPreview
             EnableWorldObjectPreviews = config.Bind("General", "enable-world-object-previews", true,
                                                     "Show a preview when empty-handed and able to interact with a world object that changes your status effects (unlit campfires, ancient luggage).");
             EnablePlayerEntityPreviews = config.Bind("General", "enable-player-entity-previews", true,
-                                                     "Show a preview when empty-handed and able to interact with a physical Thorn/Arrow stuck on your own body.");
+                                                     "Show a preview when empty-handed and able to interact with a physical Thorn/Arrow stuck on your own body, or able to cannibalize another player.");
             EnableWeightPreview = config.Bind("General", "enable-weight-preview", true,
                                                "Whether to calculate and preview the Weight status effect.");
             EnableTimedUsagePreview = config.Bind("General", "enable-timed-usage-preview", true,

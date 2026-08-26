@@ -16,6 +16,7 @@ namespace EffectPreview.Preview
         private bool _lastCookingPreviewActive;
         private bool _lastPitonPlaceable;
         private bool _lastRopeSpoolAboutToDeplete;
+        private bool _lastRitualDaggerUsable;
         private Object _lastEmptyHandedSource;
         // disambiguates "no source yet computed" from "computed, found nothing" - null is valid for both
         private bool _lastEmptyHandedSourceValid;
@@ -42,6 +43,7 @@ namespace EffectPreview.Preview
                     _lastCookingPreviewActive = false;
                     _lastPitonPlaceable = false;
                     _lastRopeSpoolAboutToDeplete = false;
+                    _lastRitualDaggerUsable = false;
                     _lastEmptyHandedSource = null;
                     _lastEmptyHandedSourceValid = false;
                 }
@@ -63,6 +65,7 @@ namespace EffectPreview.Preview
                 _lastCookingPreviewActive = false;
                 _lastPitonPlaceable = false;
                 _lastRopeSpoolAboutToDeplete = false;
+                _lastRitualDaggerUsable = false;
                 _lastEmptyHandedSource = null;
                 _lastEmptyHandedSourceValid = false;
                 return;
@@ -94,6 +97,7 @@ namespace EffectPreview.Preview
 
             bool pitonPlaceable = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsPitonPlaceable(item, character);
             bool ropeSpoolAboutToDeplete = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsRopeSpoolAboutToDeplete(item, character);
+            bool ritualDaggerUsable = RitualDaggerPreviewCalculator.IsUsable(item);
 
             // Lantern, Faerie Lantern, Candlestick toggle this on activate/deactivate
             bool flareActive = item.HasData(DataEntryKey.FlareActive) && item.GetData<BoolItemData>(DataEntryKey.FlareActive).Value;
@@ -105,7 +109,7 @@ namespace EffectPreview.Preview
             // ReferenceEquals, not ==: Unity's == treats a destroyed object as null, which would mask an item->null transition
             if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount && uses == _lastUses
                 && cookingPreviewActive == _lastCookingPreviewActive && pitonPlaceable == _lastPitonPlaceable
-                && ropeSpoolAboutToDeplete == _lastRopeSpoolAboutToDeplete
+                && ropeSpoolAboutToDeplete == _lastRopeSpoolAboutToDeplete && ritualDaggerUsable == _lastRitualDaggerUsable
                 && flareActive == _lastFlareActive && fuelBucket == _lastFuelBucket)
             {
                 return;
@@ -117,6 +121,7 @@ namespace EffectPreview.Preview
             _lastCookingPreviewActive = cookingPreviewActive;
             _lastPitonPlaceable = pitonPlaceable;
             _lastRopeSpoolAboutToDeplete = ropeSpoolAboutToDeplete;
+            _lastRitualDaggerUsable = ritualDaggerUsable;
             _lastFlareActive = flareActive;
             _lastFuelBucket = fuelBucket;
             Common.Safe.Run("HeldItemPreviewTracker.Compute", () =>
@@ -124,6 +129,10 @@ namespace EffectPreview.Preview
                 ItemPreview preview = cookingPreviewActive
                     ? CookingPreviewCalculator.Compute(item, character)
                     : ItemPreviewCalculator.Compute(item, character, isActionActive: null, pitonPlaceable, ropeSpoolAboutToDeplete);
+                if (ritualDaggerUsable)
+                {
+                    RitualDaggerPreviewCalculator.Compute(item, preview);
+                }
                 if (Plugin.Instance.Cfg.EnableTimedUsagePreview.Value)
                 {
                     TimedUsagePreviewCalculator.Compute(item, preview);
@@ -216,6 +225,10 @@ namespace EffectPreview.Preview
                 {
                     Current = ThornPreviewCalculator.Compute(thorn);
                 }
+                else if (source is CharacterInteractible)
+                {
+                    Current = CannibalismPreviewCalculator.Compute();
+                }
                 else
                 {
                     Current = new ItemPreview();
@@ -243,9 +256,16 @@ namespace EffectPreview.Preview
                     return luggage;
                 }
             }
-            if (Plugin.Instance.Cfg.EnablePlayerEntityPreviews.Value && hovered is ThornOnMe thorn && IsRemovableOwnThorn(thorn, character))
+            if (Plugin.Instance.Cfg.EnablePlayerEntityPreviews.Value)
             {
-                return thorn;
+                if (hovered is ThornOnMe thorn && IsRemovableOwnThorn(thorn, character))
+                {
+                    return thorn;
+                }
+                if (hovered is CharacterInteractible interactible && IsCannibalizableTarget(interactible))
+                {
+                    return interactible;
+                }
             }
             return null;
         }
@@ -275,6 +295,17 @@ namespace EffectPreview.Preview
                 return false;
             }
             return thorn.IsInteractible(character);
+        }
+
+        // mirrors CharacterInteractible.IsCannibal()/IsConstantlyInteractable
+        // eating another player is a held-interact action gated purely on isCannibalizable once IsInteractible has already allowed this to become `hovered`
+        private static bool IsCannibalizableTarget(CharacterInteractible interactible)
+        {
+            if (interactible.character == null || interactible.character.isBot)
+            {
+                return false;
+            }
+            return interactible.character.refs.customization.isCannibalizable;
         }
     }
 }
