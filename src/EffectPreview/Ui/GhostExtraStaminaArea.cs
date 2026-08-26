@@ -277,8 +277,8 @@ namespace EffectPreview.Ui
             _lastRealExtraStamina = 0f;
             _manualWidthControl = false;
 
-            // same don't-fight-native reasoning as the early-hide branch above
-            Character character = Character.localCharacter;
+            // same reasoning to not fight native as the early-hide branch above
+            Character character = Character.observedCharacter;
             bool realActive = character != null && (character.data.extraStamina > 0f || character.data.petrifyAmount > 0);
             if (realActive)
             {

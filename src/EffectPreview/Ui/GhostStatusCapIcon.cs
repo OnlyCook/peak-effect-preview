@@ -46,6 +46,7 @@ namespace EffectPreview.Ui
             RectTransform strikethroughRtf = CreateStrikethrough(ghostRtf, ghostImage.color);
 
             go.transform.localScale = Vector3.one;
+            Common.GhostOwnershipTag.Attach(go);
             go.SetActive(false);
 
             return new GhostStatusCapIcon(realIcon.rectTransform, realIcon, ghostRtf, strikethroughRtf);

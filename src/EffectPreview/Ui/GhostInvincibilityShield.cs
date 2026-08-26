@@ -28,6 +28,7 @@ namespace EffectPreview.Ui
             }
 
             go.transform.SetAsLastSibling();
+            Common.GhostOwnershipTag.Attach(go);
             go.SetActive(false);
             return new GhostInvincibilityShield(go);
         }

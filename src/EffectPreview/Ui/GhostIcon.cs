@@ -34,6 +34,7 @@ namespace EffectPreview.Ui
             }
 
             go.transform.localScale = Vector3.one;
+            Common.GhostOwnershipTag.Attach(go);
             go.SetActive(false);
             return new GhostIcon(go.GetComponent<RectTransform>());
         }

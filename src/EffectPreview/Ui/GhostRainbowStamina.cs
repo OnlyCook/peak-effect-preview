@@ -28,6 +28,7 @@ namespace EffectPreview.Ui
             Image ghost = go.GetComponent<Image>();
             ghost.enabled = true;
             go.transform.SetAsLastSibling();
+            Common.GhostOwnershipTag.Attach(go);
             go.SetActive(false);
             return new GhostRainbowStamina(ghost);
         }

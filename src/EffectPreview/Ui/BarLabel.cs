@@ -68,6 +68,7 @@ namespace EffectPreview.Ui
             text.fontSizeMax = MaxFontSize;
             text.outlineWidth = OutlineWidth;
 
+            Common.GhostOwnershipTag.Attach(go);
             go.SetActive(false);
             return new BarLabel(text);
         }

@@ -206,7 +206,11 @@ namespace EffectPreview.Ui
 
         private void Refresh()
         {
-            Character character = Character.localCharacter;
+            // observedCharacter, not localCharacter
+            // while spectating, GUIManager.bar itself renders specCharacter's data 
+            // (native code reads through the same property), so any ghost overlay math driven off localCharacter
+            // fights the real bar instead of tracking whoever it's actually showing
+            Character character = Character.observedCharacter;
             if (character == null)
             {
                 HideAll();

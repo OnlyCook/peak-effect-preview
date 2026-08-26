@@ -305,6 +305,7 @@ namespace EffectPreview.Ui
                 group.interactable = false;
 
                 go.transform.SetSiblingIndex(insertAfter.GetSiblingIndex() + 1);
+                Common.GhostOwnershipTag.Attach(go);
                 go.SetActive(false);
                 return new Strip(go.GetComponent<RectTransform>(), fillColor, images, baseAlphas, isRemoval, icon != null ? icon.rectTransform : null, strikethroughRtf, group);
             }

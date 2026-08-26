@@ -42,6 +42,7 @@ namespace EffectPreview.Ui
             image.color = color;
             image.raycastTarget = false;
 
+            Common.GhostOwnershipTag.Attach(go);
             go.SetActive(false);
             return new WasteIndicator(rtf);
         }

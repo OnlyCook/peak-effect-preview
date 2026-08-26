@@ -11,6 +11,9 @@ Full release.
 - Fixed many animations being driven by frame counts instead of delta time, resulting in slower animation speeds on lower fps.
 - Fixed float accumulation error for the vanilla *Petrify* status effect.
 - Fine tuned bonus stamina and *Petrify* animation speeds.
+- Added co-op support: Ritual Dagger and cannibalism now show previews when possible to use/do.
+- Fixed issue where spectating another player would cause the bonus stamina border to never grow/shrink.
+- Added compatibility with [FriendsInfo](https://thunderstore.io/c/peak/p/Serjik/FriendsInfo/) (or any of its forks; PeakStatsEx or PlayersInfo for example) so no conflicts between the mods occur.
 
 ## 0.2.0
 
@@ -28,4 +31,4 @@ Initial release.
 
 Known issues (expect more though):
 - ~~When a ghost bar is removed others may jitter slightly.~~ [fixed in 0.2.0]
-- Certain co-op preview logic may produce incorrect results.
+- ~~Certain co-op preview logic may produce incorrect results.~~ [fixed in 1.0.0]

@@ -53,6 +53,7 @@ namespace EffectPreview.Ui
                 baseAlphas[i] = c.a;
             }
 
+            Common.GhostOwnershipTag.Attach(go);
             go.SetActive(false);
             return new GhostSegment(rtf, images, baseAlphas, isRemoval);
         }
