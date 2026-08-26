@@ -55,33 +55,48 @@ namespace EffectPreview.Ui
         // ghost at the icon's natural position. Otherwise (partial): show both, centered as a pair on that position
         internal void Apply(bool fullyRemovable)
         {
-            float side = Mathf.Min(_realIconRtf.rect.width, _realIconRtf.rect.height);
-            if (side <= 0f)
+            float naturalSide = Mathf.Min(_realIconRtf.rect.width, _realIconRtf.rect.height);
+            if (naturalSide <= 0f)
             {
                 return;
-            }
-            if (_ghostStrikethroughRtf != null)
-            {
-                _ghostStrikethroughRtf.sizeDelta = new Vector2(side * 1.41421356f, side * ThicknessRatio);
             }
 
             _ghostRtf.gameObject.SetActive(true);
             if (fullyRemovable)
             {
+                if (_ghostStrikethroughRtf != null)
+                {
+                    _ghostStrikethroughRtf.sizeDelta = new Vector2(naturalSide * 1.41421356f, naturalSide * ThicknessRatio);
+                }
                 if (_realIconImage != null)
                 {
                     _realIconImage.enabled = false;
                 }
+                _realIconRtf.localScale = Vector3.one;
+                _ghostRtf.localScale = Vector3.one;
                 _realIconRtf.anchoredPosition = _realIconRestPosition;
                 _ghostRtf.anchoredPosition = _realIconRestPosition;
             }
             else
             {
+                float pairWidth = _realIconRtf.rect.width;
+                float side = Mathf.Min(naturalSide, pairWidth / (2f + GapRatio));
+                float scale = side / naturalSide;
+
+                if (_ghostStrikethroughRtf != null)
+                {
+                    // sized off the unscaled naturalSide - it's a child of _ghostRtf, so _ghostRtf's own localScale
+                    // below shrinks it down to the final 'side' size along with the rest of that icon
+                    _ghostStrikethroughRtf.sizeDelta = new Vector2(naturalSide * 1.41421356f, naturalSide * ThicknessRatio);
+                }
+
                 float offset = side * (0.5f + GapRatio * 0.5f);
                 if (_realIconImage != null)
                 {
                     _realIconImage.enabled = true;
                 }
+                _realIconRtf.localScale = Vector3.one * scale;
+                _ghostRtf.localScale = Vector3.one * scale;
                 _realIconRtf.anchoredPosition = _realIconRestPosition - new Vector2(offset, 0f);
                 _ghostRtf.anchoredPosition = _realIconRestPosition + new Vector2(offset, 0f);
             }
@@ -95,10 +110,12 @@ namespace EffectPreview.Ui
             }
             if (_realIconRtf != null)
             {
+                _realIconRtf.localScale = Vector3.one;
                 _realIconRtf.anchoredPosition = _realIconRestPosition;
             }
             if (_ghostRtf != null)
             {
+                _ghostRtf.localScale = Vector3.one;
                 _ghostRtf.gameObject.SetActive(false);
             }
         }

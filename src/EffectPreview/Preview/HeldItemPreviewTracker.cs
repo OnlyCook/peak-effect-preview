@@ -11,6 +11,8 @@ namespace EffectPreview.Preview
         private Item _lastItem;
         private int _lastCookedAmount;
         private int _lastUses;
+        private bool _lastFlareActive;
+        private int _lastFuelBucket;
         private bool _lastCookingPreviewActive;
         private bool _lastPitonPlaceable;
         private Object _lastEmptyHandedSource;
@@ -39,6 +41,8 @@ namespace EffectPreview.Preview
                 _lastItem = item;
                 _lastCookedAmount = 0;
                 _lastUses = 0;
+                _lastFlareActive = false;
+                _lastFuelBucket = 0;
                 _lastCookingPreviewActive = false;
                 _lastPitonPlaceable = false;
                 _lastEmptyHandedSource = null;
@@ -72,9 +76,17 @@ namespace EffectPreview.Preview
 
             bool pitonPlaceable = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsPitonPlaceable(item, character);
 
+            // Lantern, Faerie Lantern, Candlestick toggle this on activate/deactivate
+            bool flareActive = item.HasData(DataEntryKey.FlareActive) && item.GetData<BoolItemData>(DataEntryKey.FlareActive).Value;
+
+            // fuel keeps draining every frame while lit, so the removal-cap preview needs to keep shrinking too
+            // instead of freezing at whatever it was when the item was first picked up/lit (but bucketed so it doesn't update every frame)
+            int fuelBucket = item.HasData(DataEntryKey.Fuel) ? Mathf.RoundToInt(item.GetData<FloatItemData>(DataEntryKey.Fuel).Value * 10f) : 0;
+
             // ReferenceEquals, not ==: Unity's == treats a destroyed object as null, which would mask an item->null transition
             if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount && uses == _lastUses
-                && cookingPreviewActive == _lastCookingPreviewActive && pitonPlaceable == _lastPitonPlaceable)
+                && cookingPreviewActive == _lastCookingPreviewActive && pitonPlaceable == _lastPitonPlaceable
+                && flareActive == _lastFlareActive && fuelBucket == _lastFuelBucket)
             {
                 return;
             }
@@ -84,6 +96,8 @@ namespace EffectPreview.Preview
             _lastUses = uses;
             _lastCookingPreviewActive = cookingPreviewActive;
             _lastPitonPlaceable = pitonPlaceable;
+            _lastFlareActive = flareActive;
+            _lastFuelBucket = fuelBucket;
             Common.Safe.Run("HeldItemPreviewTracker.Compute", () =>
             {
                 ItemPreview preview = cookingPreviewActive

@@ -40,14 +40,18 @@ namespace EffectPreview.Preview
 
             foreach (StatusFieldBase field in item.GetComponentsInChildren<StatusFieldBase>(true))
             {
-                AddCap(preview, field.statusType, Mathf.Abs(field.statusAmountPerSecond) * remainingFuel);
+                // StatusFieldBase.IncreaseStatus applies the same amt to statusType and every entry in additionalStatuses 
+                // each StatusFieldStatus's own statusAmountPerSecond is never read by the
+                // game, so the cap for every one of them has to use the field's rate, not its own
+                float perSecond = Mathf.Abs(field.statusAmountPerSecond);
+                AddCap(preview, field.statusType, perSecond * remainingFuel);
                 if (field.additionalStatuses == null)
                 {
                     continue;
                 }
                 foreach (StatusFieldBase.StatusFieldStatus extra in field.additionalStatuses)
                 {
-                    AddCap(preview, extra.statusType, Mathf.Abs(extra.statusAmountPerSecond) * remainingFuel);
+                    AddCap(preview, extra.statusType, perSecond * remainingFuel);
                 }
             }
         }
