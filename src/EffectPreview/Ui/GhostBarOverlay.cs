@@ -41,7 +41,8 @@ namespace EffectPreview.Ui
 
         private void LateUpdate()
         {
-            if (!Plugin.Instance.Cfg.EnablePreview.Value || !TryGetBar())
+            // built/refreshed even while previews are disabled
+            if (!TryGetBar())
             {
                 HideAll();
                 return;

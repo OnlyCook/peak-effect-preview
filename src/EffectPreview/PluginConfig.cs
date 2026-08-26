@@ -18,6 +18,7 @@ namespace EffectPreview
         internal ConfigEntry<KeyCode> CookingPreviewKey;
         internal ConfigEntry<bool> EnableWeightPreview;
         internal ConfigEntry<bool> EnableTimedUsagePreview;
+        internal ConfigEntry<bool> EnableJetpackPreview;
 
         internal PluginConfig(ConfigFile config)
         {
@@ -31,6 +32,8 @@ namespace EffectPreview
                                                "Whether to calculate and preview the Weight status effect.");
             EnableTimedUsagePreview = config.Bind("General", "enable-timed-usage-preview", true,
                                                "While holding certain items that remove status effect based on duration used, show a struck-through status icon for any status effect the item could fully remove if fully used, or both icons side by side if only partially.");
+            EnableJetpackPreview = config.Bind("General", "enable-jetpack-preview", true,
+                                               "While holding a fuel item and hovering the jetpack fuel slot, preview where its fuel gauge needle would land.");
             EnableCookingPreview = config.Bind("General", "enable-cooking-preview", true,
                                                "While holding an item you're able to cook (near a lit campfire or portable stove), hold the cooking preview key to preview what its next cook stage would do instead of its current stage.");
             CookingPreviewKey = config.Bind("General", "cooking-preview-key", KeyCode.C,

@@ -28,6 +28,21 @@ namespace EffectPreview.Preview
         {
             if (!Plugin.Instance.Cfg.EnablePreview.Value)
             {
+                // clears any preview left over from before the setting was disabled, so vanilla-only bar counts
+                // aren't drawn against a stale ghost delta
+                if (_lastItem != null || _lastEmptyHandedSourceValid)
+                {
+                    Current = new ItemPreview();
+                    _lastItem = null;
+                    _lastCookedAmount = 0;
+                    _lastUses = 0;
+                    _lastFlareActive = false;
+                    _lastFuelBucket = 0;
+                    _lastCookingPreviewActive = false;
+                    _lastPitonPlaceable = false;
+                    _lastEmptyHandedSource = null;
+                    _lastEmptyHandedSourceValid = false;
+                }
                 return;
             }
 
