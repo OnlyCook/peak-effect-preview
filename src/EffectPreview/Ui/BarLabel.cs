@@ -73,9 +73,12 @@ namespace EffectPreview.Ui
         }
 
         // truncates to the same 0-100 "count" scale the mod's status fractions represent (0.10 -> "10")
+        // epsilon guards against native petrifyAmount landing just under a whole number (e.g. 9.999999 from float accumulation), which would otherwise floor to one less than the real value
+        private const float FormatCountEpsilon = 1e-4f;
+
         internal static string FormatCount(float fraction)
         {
-            return Mathf.FloorToInt(fraction * 100f).ToString();
+            return Mathf.FloorToInt(fraction * 100f + FormatCountEpsilon).ToString();
         }
 
         // lightly translucent version of a raw fill color, so a ghost label still reads as "ghost" without losing legibility the way the ghost bars can
