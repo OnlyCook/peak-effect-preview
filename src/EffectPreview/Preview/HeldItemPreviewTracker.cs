@@ -16,6 +16,7 @@ namespace EffectPreview.Preview
         private bool _lastCookingPreviewActive;
         private bool _lastPitonPlaceable;
         private bool _lastRopeSpoolAboutToDeplete;
+        private bool _lastConstructablePlaceable;
         private bool _lastRitualDaggerUsable;
         private Object _lastEmptyHandedSource;
         // disambiguates "no source yet computed" from "computed, found nothing" - null is valid for both
@@ -44,6 +45,7 @@ namespace EffectPreview.Preview
                     _lastCookingPreviewActive = false;
                     _lastPitonPlaceable = false;
                     _lastRopeSpoolAboutToDeplete = false;
+                    _lastConstructablePlaceable = true;
                     _lastRitualDaggerUsable = false;
                     _lastEmptyHandedSource = null;
                     _lastEmptyHandedSourceValid = false;
@@ -98,6 +100,7 @@ namespace EffectPreview.Preview
 
             bool pitonPlaceable = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsPitonPlaceable(item, character);
             bool ropeSpoolAboutToDeplete = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsRopeSpoolAboutToDeplete(item, character);
+            bool constructablePlaceable = IsConstructablePlaceable(item);
             bool ritualDaggerUsable = RitualDaggerPreviewCalculator.IsUsable(item);
 
             // Lantern, Faerie Lantern, Candlestick toggle this on activate/deactivate
@@ -110,7 +113,8 @@ namespace EffectPreview.Preview
             // ReferenceEquals, not ==: Unity's == treats a destroyed object as null, which would mask an item->null transition
             if (ReferenceEquals(item, _lastItem) && cookedAmount == _lastCookedAmount && uses == _lastUses
                 && cookingPreviewActive == _lastCookingPreviewActive && pitonPlaceable == _lastPitonPlaceable
-                && ropeSpoolAboutToDeplete == _lastRopeSpoolAboutToDeplete && ritualDaggerUsable == _lastRitualDaggerUsable
+                && ropeSpoolAboutToDeplete == _lastRopeSpoolAboutToDeplete && constructablePlaceable == _lastConstructablePlaceable
+                && ritualDaggerUsable == _lastRitualDaggerUsable
                 && flareActive == _lastFlareActive && fuelBucket == _lastFuelBucket)
             {
                 return;
@@ -122,6 +126,7 @@ namespace EffectPreview.Preview
             _lastCookingPreviewActive = cookingPreviewActive;
             _lastPitonPlaceable = pitonPlaceable;
             _lastRopeSpoolAboutToDeplete = ropeSpoolAboutToDeplete;
+            _lastConstructablePlaceable = constructablePlaceable;
             _lastRitualDaggerUsable = ritualDaggerUsable;
             _lastFlareActive = flareActive;
             _lastFuelBucket = fuelBucket;
@@ -129,7 +134,7 @@ namespace EffectPreview.Preview
             {
                 ItemPreview preview = cookingPreviewActive
                     ? CookingPreviewCalculator.Compute(item, character)
-                    : ItemPreviewCalculator.Compute(item, character, isActionActive: null, pitonPlaceable, ropeSpoolAboutToDeplete);
+                    : ItemPreviewCalculator.Compute(item, character, isActionActive: null, pitonPlaceable, ropeSpoolAboutToDeplete, constructablePlaceable);
                 if (ritualDaggerUsable)
                 {
                     RitualDaggerPreviewCalculator.Compute(item, preview);
@@ -179,6 +184,27 @@ namespace EffectPreview.Preview
                 return false;
             }
             return spool.RopeFuel - spool.Segments <= 2f;
+        }
+
+        private static bool IsConstructablePlaceable(Item item)
+        {
+            Constructable constructable = item.GetComponent<Constructable>();
+            if (constructable == null)
+            {
+                return true;
+            }
+            if (MainCamera.instance == null)
+            {
+                return false;
+            }
+            Transform cameraTransform = MainCamera.instance.transform;
+            Vector3 origin = cameraTransform.position;
+            RaycastHit hit = HelperFunctions.LineCheck(origin, origin + cameraTransform.forward.normalized * constructable.maxConstructDistance, HelperFunctions.LayerType.TerrainMap);
+            if (hit.collider == null)
+            {
+                return false;
+            }
+            return item.CanUsePrimary();
         }
 
         // holding the cooking preview key while looking at a lit campfire you're able to cook this item on right now,

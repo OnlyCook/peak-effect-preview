@@ -1,6 +1,8 @@
 ## 1.1.0
 
 - Reworked bonus stamina and *Petrify* bar animation to be more in harmony and be slightly more relaxed.
+- Fixed weight removal preview not showing for Rescue Claw with only its last use remaining.
+- Fixed weight removal preview always showing for come deployables (Scout Cannon, Scout Effigy, Checkpoint Flag, and Portable Stove) even if not able to be placed.
 
 ## 1.0.0
 

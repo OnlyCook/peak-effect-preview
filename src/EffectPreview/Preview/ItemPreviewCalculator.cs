@@ -56,7 +56,11 @@ namespace EffectPreview.Preview
         // isActionActive: lets CookingPreviewCalculator simulate a toggled ItemAction without mutating it, see RESEARCH.md
         // pitonPlaceable: HeldItemPreviewTracker's live raycast says this ClimbingSpikeComponent item could be hammered in right now
         // ropeSpoolAboutToDeplete: HeldItemPreviewTracker says placing the currently-selected rope length would use up the rest of this RopeSpool/AntiRopeSpool
-        internal static ItemPreview Compute(Item item, Character character, Func<ItemAction, bool> isActionActive, bool pitonPlaceable = false, bool ropeSpoolAboutToDeplete = false)
+        //
+        // constructablePlaceable: true for any item without a Constructable component (no restriction); for one that has it (Scout Cannon/Effigy,
+        // Checkpoint Flag, Portable Stove), HeldItemPreviewTracker's own CanUsePrimary() read 
+        // Constructable.Update() keeps overrideUsability in sync with its live placement-validity raycast every frame
+        internal static ItemPreview Compute(Item item, Character character, Func<ItemAction, bool> isActionActive, bool pitonPlaceable = false, bool ropeSpoolAboutToDeplete = false, bool constructablePlaceable = true)
         {
             var preview = new ItemPreview();
             if (item == null || character == null)
@@ -233,7 +237,7 @@ namespace EffectPreview.Preview
                 preview.AddStatus(entry.Key, entry.Value);
             }
 
-            if ((wouldConsume || pitonPlaceable || ropeSpoolAboutToDeplete) && Plugin.Instance.Cfg.EnableWeightPreview.Value)
+            if ((wouldConsume || pitonPlaceable || ropeSpoolAboutToDeplete) && constructablePlaceable && Plugin.Instance.Cfg.EnableWeightPreview.Value)
             {
                 AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Weight, WeightDeltaOnConsume(item, character));
             }
@@ -349,6 +353,13 @@ namespace EffectPreview.Preview
         // whether pressing (primary) use on this item ever actually calls Item.Consume() see RESEARCH.md
         private static bool WouldConsumeItem(Item item, ItemAction[] actions, Func<ItemAction, bool> isActionActive, bool requireLastUse)
         {
+            // rescue claw consumes itself directly off ItemUses.Value==0 in its own RPCA_LetGo/OnPrimaryFinishedCast,
+            // bypassing Action_ReduceUses.consumeOnFullyUsed entirely
+            if (item.GetComponent<RescueHook>() != null && (!requireLastUse || IsLastUseRemaining(item)))
+            {
+                return true;
+            }
+
             foreach (var action in actions)
             {
                 bool active = isActionActive != null ? isActionActive(action) : (action.enabled && action.gameObject.activeInHierarchy);
@@ -372,23 +383,23 @@ namespace EffectPreview.Preview
                 {
                     return true;
                 }
-                if (action is Action_ReduceUses reduceUses && reduceUses.consumeOnFullyUsed)
+                if (action is Action_ReduceUses reduceUses && reduceUses.consumeOnFullyUsed && (!requireLastUse || IsLastUseRemaining(item)))
                 {
-                    if (!requireLastUse)
-                    {
-                        return true;
-                    }
-                    if (item.HasData(DataEntryKey.ItemUses))
-                    {
-                        OptionableIntItemData usesData = item.GetData<OptionableIntItemData>(DataEntryKey.ItemUses);
-                        if (usesData.HasData && usesData.Value == 1)
-                        {
-                            return true;
-                        }
-                    }
+                    return true;
                 }
             }
             return false;
+        }
+
+        // shared by both the generic Action_ReduceUses.consumeOnFullyUsed check above and RescueHook's own manual consume check
+        private static bool IsLastUseRemaining(Item item)
+        {
+            if (!item.HasData(DataEntryKey.ItemUses))
+            {
+                return false;
+            }
+            OptionableIntItemData usesData = item.GetData<OptionableIntItemData>(DataEntryKey.ItemUses);
+            return usesData.HasData && usesData.Value == 1;
         }
 
         // covers afflictions whose effect only lands once their buff wears off (energy drink's crash, etc)
