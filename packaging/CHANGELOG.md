@@ -1,3 +1,7 @@
+## 1.1.0
+
+- Reworked bonus stamina and *Petrify* bar animation to be more in harmony and be slightly more relaxed.
+
 ## 1.0.0
 
 Full release.

@@ -357,7 +357,10 @@ namespace EffectPreview.Ui
             _petrifyArea?.Apply(fullLocalWidth, petrifyDelta, rawPetrifyDelta, petrifyShrinkDelta, currentPetrifyFraction, petrifyActive, unifiedWasteHeight);
             bool petrifyGhostVisible = (_petrifyArea?.DisplayedDelta ?? 0f) > 0.002f;
 
-            _extraStaminaArea?.Apply(fullLocalWidth, character.data.extraStamina, preview.ExtraStaminaDelta, character.data.petrifyAmount, petrifyActive, petrifyDelta, petrifyGhostVisible);
+            // the bonus-stamina cap is fed Petrify's own animated DisplayedDelta (not the raw instant target) so the room it opens/closes each frame
+            // exactly matches what petrify's ghost is actually showing right then
+            float animatedPetrifyPreviewDelta = _petrifyArea?.DisplayedDelta ?? petrifyDelta;
+            _extraStaminaArea?.Apply(fullLocalWidth, character.data.extraStamina, preview.ExtraStaminaDelta, character.data.petrifyAmount, petrifyActive, animatedPetrifyPreviewDelta, petrifyGhostVisible);
 
             _rainbowArea?.Apply(preview.GrantsInfiniteStaminaOnUse, character.infiniteStam);
             // CharacterData.isInvincible is internal to the game assembly, so this checks the same thing through the public affliction API instead

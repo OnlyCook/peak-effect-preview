@@ -11,8 +11,6 @@ namespace EffectPreview.Ui
         private static readonly Vector2 ShownExtraBarSize = new Vector2(45f, 45f);
         private const float OutlinePadding = 12f;
         private const float MinOutlineWidth = 20f;
-        private const float ShowDuration = 0.34f;
-        private const float HideDuration = 0.27f;
         private const float HiddenThreshold = 0.0001f;
 
         // hides the doubled-border seam where the ghost clone butts against the real fill
@@ -55,9 +53,11 @@ namespace EffectPreview.Ui
         private float _displayedDelta;
         private float _lastRealExtraStamina;
 
-        // manual control of extraBarStamina's width for a petrify cap shrink or a post-consume catch-up; released only once converged to realWidth, see RESEARCH.md (cachedExtraStam)
-        private bool _manualWidthControl;
-        private float _manualDisplayedWidth;
+        // smoothed catch-up back to realWidth after a post-consume snap (see realGrowth below); released only once converged
+        // a Petrify cap override does not go through this
+        // it's driven straight off overrideTargetWidth instead, see overridingNow below
+        private bool _catchUpWidthControl;
+        private float _catchUpDisplayedWidth;
 
         // outline lerps toward its target like native does, instead of snapping when petrifyPresentOrPreviewed flips
         private float _displayedOutlineWidth;
@@ -100,8 +100,8 @@ namespace EffectPreview.Ui
                 _tween?.Kill();
                 _tweenTarget = _animatedDelta;
                 delta = 0f;
-                _manualWidthControl = true;
-                _manualDisplayedWidth = _extraBarStamina.sizeDelta.x;
+                _catchUpWidthControl = true;
+                _catchUpDisplayedWidth = _extraBarStamina.sizeDelta.x;
             }
             _lastRealExtraStamina = realExtraStamina;
 
@@ -115,7 +115,7 @@ namespace EffectPreview.Ui
                 bool growing = targetDelta > _animatedDelta;
                 _tween?.Kill();
                 _tweenTarget = targetDelta;
-                _tween = DOTween.To(() => _animatedDelta, x => _animatedDelta = x, targetDelta, growing ? ShowDuration : HideDuration)
+                _tween = DOTween.To(() => _animatedDelta, x => _animatedDelta = x, targetDelta, growing ? Common.AnimUtil.TweenShowDuration : Common.AnimUtil.TweenHideDuration)
                     .SetEase(growing ? Ease.OutCubic : Ease.InCubic);
             }
 
@@ -129,7 +129,7 @@ namespace EffectPreview.Ui
             float settledLocalWidth = overridingNow ? overrideTargetWidth : realWidth;
 
             // petrifyGhostVisible (not just petrifyPreviewDelta>0) keeps the bar open until petrify's own ghost has visually faded, not just until its target hits 0
-            if (targetDelta <= 0f && _animatedDelta < HiddenThreshold && !overridingNow && !_manualWidthControl && !petrifyGhostVisible)
+            if (targetDelta <= 0f && _animatedDelta < HiddenThreshold && !overridingNow && !_catchUpWidthControl && !petrifyGhostVisible)
             {
                 _fillGhost.Hide();
                 _icon?.Hide();
@@ -174,22 +174,24 @@ namespace EffectPreview.Ui
                 _icon?.Hide();
             }
 
-            if (overridingNow || _manualWidthControl)
+            if (overridingNow)
+            {
+                // overrideTargetWidth is already animated 1:1 off petrify's own DisplayedDelta tween (see GhostBarOverlay), so it needs no
+                // smoothing of its own here
+                // adding another lerp on top would desync this edge from petrify's ghost and reopen the exact
+                // gap/overlap this direct assignment exists to prevent
+                _catchUpWidthControl = false;
+                _extraBarStamina.sizeDelta = new Vector2(overrideTargetWidth, _extraBarStamina.sizeDelta.y);
+            }
+            else if (_catchUpWidthControl)
             {
                 float lerpStep = Common.AnimUtil.LerpStep(ShrinkLerpStep100Fps);
-                if (!_manualWidthControl)
-                {
-                    _manualDisplayedWidth = _extraBarStamina.sizeDelta.x;
-                }
-                _manualWidthControl = true;
+                _catchUpDisplayedWidth = Mathf.Lerp(_catchUpDisplayedWidth, realWidth, lerpStep);
+                _extraBarStamina.sizeDelta = new Vector2(_catchUpDisplayedWidth, _extraBarStamina.sizeDelta.y);
 
-                float manualTarget = overridingNow ? overrideTargetWidth : realWidth;
-                _manualDisplayedWidth = Mathf.Lerp(_manualDisplayedWidth, manualTarget, lerpStep);
-                _extraBarStamina.sizeDelta = new Vector2(_manualDisplayedWidth, _extraBarStamina.sizeDelta.y);
-
-                if (!overridingNow && Mathf.Abs(_manualDisplayedWidth - realWidth) < 0.5f)
+                if (Mathf.Abs(_catchUpDisplayedWidth - realWidth) < 0.5f)
                 {
-                    _manualWidthControl = false;
+                    _catchUpWidthControl = false;
                 }
             }
 
@@ -275,7 +277,7 @@ namespace EffectPreview.Ui
             _animatedDelta = 0f;
             _displayedDelta = 0f;
             _lastRealExtraStamina = 0f;
-            _manualWidthControl = false;
+            _catchUpWidthControl = false;
 
             // same reasoning to not fight native as the early-hide branch above
             Character character = Character.observedCharacter;

@@ -1,3 +1,4 @@
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 
@@ -36,7 +37,10 @@ namespace EffectPreview.Ui
         private readonly Color _ghostOutline;
         private readonly Vector3[] _cornerBuffer = new Vector3[4];
 
-        // drives the actual bar/ghost animation, lerps continuously and never snaps
+        private Tween _tween;
+        private float _tweenTarget;
+
+        // drives the actual bar/ghost animation, tweens continuously and never snaps
         private float _animatedDelta;
 
         // drives the count label only, snaps early per DisplayedDeltaSnapEpsilon
@@ -130,12 +134,16 @@ namespace EffectPreview.Ui
             }
 
             float targetDelta = delta > 0f ? delta : 0f;
-            _animatedDelta = Mathf.Lerp(_animatedDelta, targetDelta, lerpStep);
-            _displayedDelta = Mathf.Lerp(_displayedDelta, targetDelta, lerpStep);
-            if (Mathf.Abs(_displayedDelta - targetDelta) < DisplayedDeltaSnapEpsilon)
+            // matches GhostExtraStaminaArea's own tween exactly (shared durations/ease) since this bar's growth eats into that one's space
+            if (!Mathf.Approximately(targetDelta, _tweenTarget))
             {
-                _displayedDelta = targetDelta;
+                bool growing = targetDelta > _animatedDelta;
+                _tween?.Kill();
+                _tweenTarget = targetDelta;
+                _tween = DOTween.To(() => _animatedDelta, x => _animatedDelta = x, targetDelta, growing ? Common.AnimUtil.TweenShowDuration : Common.AnimUtil.TweenHideDuration)
+                    .SetEase(growing ? Ease.OutCubic : Ease.InCubic);
             }
+            _displayedDelta = Mathf.Abs(_animatedDelta - _tweenTarget) < DisplayedDeltaSnapEpsilon ? _tweenTarget : _animatedDelta;
 
             _timeSinceTargetZero = targetDelta > 0f ? 0f : _timeSinceTargetZero + Time.deltaTime;
 
@@ -210,6 +218,9 @@ namespace EffectPreview.Ui
 
         internal void Hide()
         {
+            _tween?.Kill();
+            _tween = null;
+            _tweenTarget = 0f;
             _animatedDelta = 0f;
             _displayedDelta = 0f;
             _timeSinceTargetZero = IconHideDelay;
