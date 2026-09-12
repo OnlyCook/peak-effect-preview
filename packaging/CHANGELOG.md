@@ -1,5 +1,6 @@
 ## 1.1.0
 
+- Added new `Interactions/enable-item-pickup-previews` (off by default) config setting to show the item's preview when aiming at it in reach to pick up. Thanks to JoeDummy001 for the suggestion!
 - Reworked bonus stamina and *Petrify* bar animation to be more in harmony and be slightly more relaxed.
 - Fixed weight removal preview not showing for Rescue Claw with only its last use remaining.
 - Fixed weight removal preview always showing for come deployables (Scout Cannon, Scout Effigy, Checkpoint Flag, and Portable Stove) even if not able to be placed.

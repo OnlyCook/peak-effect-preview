@@ -14,6 +14,7 @@ namespace EffectPreview
         internal ConfigEntry<bool> StickyThornRemoval;
         internal ConfigEntry<bool> EnableWorldObjectPreviews;
         internal ConfigEntry<bool> EnablePlayerEntityPreviews;
+        internal ConfigEntry<bool> EnableItemPickupPreviews;
         internal ConfigEntry<bool> EnableCookingPreview;
         internal ConfigEntry<KeyCode> CookingPreviewKey;
         internal ConfigEntry<bool> EnableWeightPreview;
@@ -29,6 +30,8 @@ namespace EffectPreview
                                                     "Show a preview when empty-handed and able to interact with a world object that changes your status effects (unlit campfires, ancient luggage).");
             EnablePlayerEntityPreviews = config.Bind("Interactions", "enable-player-entity-previews", true,
                                                      "Show a preview when empty-handed and able to interact with a physical Thorn/Arrow stuck on your own body, or able to cannibalize another player.");
+            EnableItemPickupPreviews = config.Bind("Interactions", "enable-item-pickup-previews", false,
+                                                   "Show a preview when empty-handed and aiming at an item on the ground in reach to pick up, for what its effect would be if held.");
             StickyThornRemoval = config.Bind("Interactions", "sticky-thorn-removal", true,
                                              "Keep removing a physical Thorn/Arrow you're holding interact on even if your aim drifts off it, instead of vanilla's behavior of cancelling the moment you're not looking straight at it.");
 

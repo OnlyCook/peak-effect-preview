@@ -256,6 +256,10 @@ namespace EffectPreview.Preview
                 {
                     Current = CannibalismPreviewCalculator.Compute();
                 }
+                else if (source is Item groundItem)
+                {
+                    Current = ItemPreviewCalculator.ComputeForPickup(groundItem, character);
+                }
                 else
                 {
                     Current = new ItemPreview();
@@ -293,6 +297,12 @@ namespace EffectPreview.Preview
                 {
                     return interactible;
                 }
+            }
+            // DoInteractableRaycasts only ever sets currentHovered to an Item that already passed its own
+            // IsInteractible() (not held/backpacked/blocked), so no extra gate is needed here
+            if (Plugin.Instance.Cfg.EnableItemPickupPreviews.Value && hovered is Item groundItem)
+            {
+                return groundItem;
             }
             return null;
         }

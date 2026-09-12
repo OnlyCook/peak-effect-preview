@@ -53,14 +53,25 @@ namespace EffectPreview.Preview
             return Compute(item, character, isActionActive: null);
         }
 
+        // the item is still lying on the ground, not held
+        // none of the gates to indicate use right now (wouldConsume, piton/rope placement,
+        // constructable placement) apply, and unlike a held item's weight preview (which
+        // previews losing this item's CarryWeight on full consumption), picking it up ADDS its CarryWeight to
+        // your inventory, so the weight delta direction is inverted, see WeightDeltaOnPickup
+        // i dislike this but if it removes weight it makes even less sense to me
+        internal static ItemPreview ComputeForPickup(Item item, Character character)
+        {
+            return Compute(item, character, isActionActive: null, forPickup: true);
+        }
+
         // isActionActive: lets CookingPreviewCalculator simulate a toggled ItemAction without mutating it, see RESEARCH.md
         // pitonPlaceable: HeldItemPreviewTracker's live raycast says this ClimbingSpikeComponent item could be hammered in right now
         // ropeSpoolAboutToDeplete: HeldItemPreviewTracker says placing the currently-selected rope length would use up the rest of this RopeSpool/AntiRopeSpool
         //
         // constructablePlaceable: true for any item without a Constructable component (no restriction); for one that has it (Scout Cannon/Effigy,
-        // Checkpoint Flag, Portable Stove), HeldItemPreviewTracker's own CanUsePrimary() read 
+        // Checkpoint Flag, Portable Stove), HeldItemPreviewTracker's own CanUsePrimary() read
         // Constructable.Update() keeps overrideUsability in sync with its live placement-validity raycast every frame
-        internal static ItemPreview Compute(Item item, Character character, Func<ItemAction, bool> isActionActive, bool pitonPlaceable = false, bool ropeSpoolAboutToDeplete = false, bool constructablePlaceable = true)
+        internal static ItemPreview Compute(Item item, Character character, Func<ItemAction, bool> isActionActive, bool pitonPlaceable = false, bool ropeSpoolAboutToDeplete = false, bool constructablePlaceable = true, bool forPickup = false)
         {
             var preview = new ItemPreview();
             if (item == null || character == null)
@@ -237,7 +248,14 @@ namespace EffectPreview.Preview
                 preview.AddStatus(entry.Key, entry.Value);
             }
 
-            if ((wouldConsume || pitonPlaceable || ropeSpoolAboutToDeplete) && constructablePlaceable && Plugin.Instance.Cfg.EnableWeightPreview.Value)
+            if (forPickup)
+            {
+                if (Plugin.Instance.Cfg.EnableWeightPreview.Value)
+                {
+                    AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Weight, WeightDeltaOnPickup(item, character));
+                }
+            }
+            else if ((wouldConsume || pitonPlaceable || ropeSpoolAboutToDeplete) && constructablePlaceable && Plugin.Instance.Cfg.EnableWeightPreview.Value)
             {
                 AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Weight, WeightDeltaOnConsume(item, character));
             }
@@ -288,6 +306,17 @@ namespace EffectPreview.Preview
             int rawSum = RawCarryWeightSum(character);
             float liveStatus = Mathf.Clamp(WeightPerCarryUnit * rawSum, 0f, cap);
             float projectedStatus = Mathf.Clamp(WeightPerCarryUnit * (rawSum - item.CarryWeight), 0f, cap);
+            return projectedStatus - liveStatus;
+        }
+
+        // mirror of WeightDeltaOnConsume for a ground item not yet in the inventory, so adds CarryWeight to the raw
+        // sum instead of subtracting it
+        private static float WeightDeltaOnPickup(Item item, Character character)
+        {
+            float cap = character.refs.afflictions.GetStatusCap(CharacterAfflictions.STATUSTYPE.Weight);
+            int rawSum = RawCarryWeightSum(character);
+            float liveStatus = Mathf.Clamp(WeightPerCarryUnit * rawSum, 0f, cap);
+            float projectedStatus = Mathf.Clamp(WeightPerCarryUnit * (rawSum + item.CarryWeight), 0f, cap);
             return projectedStatus - liveStatus;
         }
 
