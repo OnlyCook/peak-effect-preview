@@ -17,6 +17,8 @@ Fully client-sided: only you need to install the mod and only you will see it's 
 - Tell when you'd fall unconscious or turn into a statue through item usage
 - *(Optional)* Know when you'd waste an item's precious stats
 - *(Optional)* See status effect counts/numbers
+- *(Optional)* See how much longer *Invincibility*/*Infinite Stamina* will last, as counts and/or directly on the bar
+- *(Optional)* Preview an item's effect just by aiming at it on the ground, empty-handed
 
 <img width="790" height="222" alt="screenshot-2" src="https://raw.githubusercontent.com/OnlyCook/peak-effect-preview/refs/heads/main/packaging/screenshot-2.png" />
 
@@ -33,9 +35,9 @@ Config file: `BepInEx/config/OnlyCook.EffectPreview.cfg`.
 <summary><b>View config information</b></summary>
 
 - **General**: master preview switch.
-- **Interactions**: world-object previews (unlit campfires, ancient luggage), player-entity previews (Thorn/Arrow stuck on you, cannibalism), sticky Thorn/Arrow removal.
+- **Interactions**: world-object previews (unlit campfires, ancient luggage), player-entity previews (Thorn/Arrow stuck on you, cannibalism), item pickup previews, sticky Thorn/Arrow removal.
 - **Item Previews**: weight preview, timed-usage preview (status effects fully/partially removed by item duration), jetpack fuel gauge preview, cooking preview toggle and its key (default **`C`**).
-- **Bar Display**: waste indicator, removal blink, ghost/vanilla bar count numbers and their font scale.
+- **Bar Display**: waste indicator, removal blink, ghost/vanilla bar count numbers and their font scale, Invincibility/Infinite Stamina remaining duration counts and bar visualization.
 
 </details>
 

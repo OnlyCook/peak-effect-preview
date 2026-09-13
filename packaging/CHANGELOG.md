@@ -1,7 +1,7 @@
 ## 1.1.0
 
 - Added 2 new config settings:
-    - `Bar-Display/show-special-status-duration` (off by default) which adds an animation to visualize the remaining duration of the *Invincibility* and *Infinite Stamina* status effects.
+    - `Bar-Display/show-special-status-duration` (**on** by default) which adds an animation to visualize the remaining duration of the *Invincibility* and *Infinite Stamina* status effects.
     - `Bar-Display/show-special-status-counts` (off by default) shows labels of the stated duration in seconds above.
 - Added new `Interactions/enable-item-pickup-previews` (off by default) config setting to show the item's preview when aiming at an item in reach to pick up with empty hands. Thanks to JoeDummy001 for the suggestion!
 - Reworked bonus stamina and *Petrify* bar animation to be more in harmony and be slightly more relaxed.

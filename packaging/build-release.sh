@@ -23,9 +23,9 @@
 # folder, so extracting it straight into BepInEx/plugins/ produces the
 # correct layout for a manual install:
 #     dist/nexus/EffectPreview-<version>-nexus.zip (normal defaults)
-#     dist/nexus/EffectPreview-<version>-nexus-bars-on.zip (ShowGhostBarCounts
-# and ShowVanillaBarCounts default to true, via the BARS_DEFAULT_ON
-# compile-time define in PluginConfig.cs)
+#     dist/nexus/EffectPreview-<version>-nexus-bars-on.zip (ShowGhostBarCounts,
+# ShowVanillaBarCounts and ShowSpecialStatusCounts default to true, via the
+# BARS_DEFAULT_ON compile-time define in PluginConfig.cs)
 #
 # Usage:  bash packaging/build-release.sh
 set -euo pipefail
@@ -117,9 +117,9 @@ package_nexus_zip() {
 
 package_nexus_zip "$DLL" "-nexus"
 
-# 5.5. Bars-on variant: rebuild with ShowGhostBarCounts / ShowVanillaBarCounts
-#      defaulting to true (BARS_DEFAULT_ON), for players who want the bar
-#      count numbers on out of the box
+# 5.5. Bars-on variant: rebuild with ShowGhostBarCounts / ShowVanillaBarCounts /
+#      ShowSpecialStatusCounts defaulting to true (BARS_DEFAULT_ON), for
+#      players who want the bar count numbers on out of the box
 echo "Building bars-on variant..."
 dotnet build "$PROJ/EffectPreview.csproj" -c Release -p:DefineConstants=BARS_DEFAULT_ON >/dev/null
 BARS_ON_DLL="$PROJ/bin/Release/EffectPreview.dll"
