@@ -36,8 +36,16 @@ namespace EffectPreview.Ui
         private BorderWarningBlink _passOutBorderBlink;
         private BorderWarningBlink _petrifyDeathBorderBlink;
         private BarLabel _staminaCountLabel;
+        private InvincibilityBorderVisual _invincibilityBorderVisual;
+        private InfiniteStaminaDurationVisual _infiniteStaminaDurationVisual;
+        private BarLabel _invincibilityCountLabel;
+        private RectTransform _shieldIconRect;
         private Color _staminaVanillaForeground;
         private Color _staminaVanillaOutline;
+        private TMPro.TMP_FontAsset _font;
+        private UnityEngine.Material _fontMaterial;
+        private readonly Preview.InfiniteStaminaGraceTracker _infiniteStaminaGraceTracker = new Preview.InfiniteStaminaGraceTracker();
+        private readonly Preview.InfiniteStaminaUnifiedTimer _infiniteStaminaUnifiedTimer = new Preview.InfiniteStaminaUnifiedTimer();
 
         private void LateUpdate()
         {
@@ -59,6 +67,10 @@ namespace EffectPreview.Ui
                 _passOutBorderBlink = null;
                 _petrifyDeathBorderBlink = null;
                 _staminaCountLabel = null;
+                _invincibilityBorderVisual = null;
+                _infiniteStaminaDurationVisual = null;
+                _invincibilityCountLabel = null;
+                _shieldIconRect = null;
                 _built = false;
             }
 
@@ -110,6 +122,18 @@ namespace EffectPreview.Ui
             {
                 return true;
             }
+            if (_invincibilityBorderVisual != null && !_invincibilityBorderVisual.IsValid)
+            {
+                return true;
+            }
+            if (_infiniteStaminaDurationVisual != null && !_infiniteStaminaDurationVisual.IsValid)
+            {
+                return true;
+            }
+            if (_invincibilityCountLabel != null && !_invincibilityCountLabel.IsValid)
+            {
+                return true;
+            }
             return _staminaArea != null && !_staminaArea.IsValid;
         }
 
@@ -131,6 +155,8 @@ namespace EffectPreview.Ui
             // the game's own TMP font/material (moraleBoostText), reused so the bar-count labels read as native UI rather than a mod font
             TMPro.TMP_FontAsset font = _bar.moraleBoostText != null ? _bar.moraleBoostText.font : null;
             UnityEngine.Material fontMaterial = _bar.moraleBoostText != null ? _bar.moraleBoostText.fontSharedMaterial : null;
+            _font = font;
+            _fontMaterial = fontMaterial;
 
             foreach (BarAffliction affliction in _bar.afflictions)
             {
@@ -151,7 +177,7 @@ namespace EffectPreview.Ui
                 _petrifyArea = new GhostPetrifyArea(_bar.petrifyAffliction, font, fontMaterial);
             }
 
-            if (_staminaCountLabel == null && _bar.staminaBar != null)
+            if (_staminaCountLabel == null && _bar.staminaBar != null && font != null)
             {
                 _staminaCountLabel = BarLabel.Create(_bar.staminaBar.parent, font, fontMaterial);
                 _staminaVanillaForeground = WasteIndicator.SampleFillColor(_bar.staminaBar.gameObject, null);
@@ -175,12 +201,15 @@ namespace EffectPreview.Ui
             }
 
             // staminaBarOutline has no Image of its own, the visible border sprites are its "OutlineImage"/"OutlineCap" children (confirmed via runtime dump)
+            Transform outlineImageTransform = _bar.staminaBarOutline != null ? _bar.staminaBarOutline.Find("OutlineImage") : null;
+            Transform outlineCapTransform = _bar.staminaBarOutline != null ? _bar.staminaBarOutline.Find("OutlineCap") : null;
+            RectTransform outlineImageRtf = outlineImageTransform as RectTransform;
+            RectTransform outlineCapRtf = outlineCapTransform as RectTransform;
+
             if (_passOutBorderBlink == null && _bar.staminaBarOutline != null)
             {
-                Transform outlineImage = _bar.staminaBarOutline.Find("OutlineImage");
-                Transform outlineCap = _bar.staminaBarOutline.Find("OutlineCap");
-                UnityEngine.UI.Image img1 = outlineImage != null ? outlineImage.GetComponent<UnityEngine.UI.Image>() : null;
-                UnityEngine.UI.Image img2 = outlineCap != null ? outlineCap.GetComponent<UnityEngine.UI.Image>() : null;
+                UnityEngine.UI.Image img1 = outlineImageRtf != null ? outlineImageRtf.GetComponent<UnityEngine.UI.Image>() : null;
+                UnityEngine.UI.Image img2 = outlineCapRtf != null ? outlineCapRtf.GetComponent<UnityEngine.UI.Image>() : null;
                 if (img1 != null && img2 != null)
                 {
                     _passOutBorderBlink = new BorderWarningBlink(img1, img2);
@@ -190,6 +219,21 @@ namespace EffectPreview.Ui
                     _passOutBorderBlink = new BorderWarningBlink(img1);
                 }
             }
+
+            RectTransform shieldRtf = _bar.shield != null ? _bar.shield.GetComponent<RectTransform>() : null;
+
+            if (_invincibilityBorderVisual == null && shieldRtf != null)
+            {
+                _invincibilityBorderVisual = new InvincibilityBorderVisual(shieldRtf);
+            }
+
+            if (_infiniteStaminaDurationVisual == null && _bar.rainbowStamina != null)
+            {
+                _infiniteStaminaDurationVisual = new InfiniteStaminaDurationVisual(_bar.rainbowStamina.rectTransform);
+            }
+
+            // _invincibilityCountLabel itself isn't created here (see note on its lazy creation in Refresh())
+            _shieldIconRect = shieldRtf;
 
             // extraBarOutline (the bonus-stamina/petrify border) carries its own Image directly
             if (_petrifyDeathBorderBlink == null && _bar.extraBarOutline != null)
@@ -275,9 +319,67 @@ namespace EffectPreview.Ui
                 entry.Value.ApplyRemovalCap(live, capPreviewEnabled ? removalCap : 0f, decreaseActive);
             }
 
+            bool showSpecialCounts = Plugin.Instance.Cfg.ShowSpecialStatusCounts.Value;
+            bool showSpecialDurationVisual = Plugin.Instance.Cfg.ShowSpecialStatusDurationVisual.Value;
+
+            // shared by the label below and the rainbow-shrink visual further down
+            if (!character.infiniteStam)
+            {
+                _infiniteStaminaGraceTracker.Reset();
+                _infiniteStaminaUnifiedTimer.Reset();
+            }
+
+            bool infStamHasData;
+            float infStamRemainingSeconds = 0f;
+            float infStamRemainingFraction = 0f;
+            string infStamGraceSuffix = null;
+
+            // read even while Radiate is active
+            // it may have been separately extended
+            bool directActive = Preview.SpecialStatusDuration.TryGetDirectInfiniteStaminaAffliction(character, out Affliction_InfiniteStamina directInfStam);
+            float directRemaining = directActive ? Mathf.Max(0f, directInfStam.totalTime - directInfStam.timeElapsed) : 0f;
+
+            bool radiateActive = Preview.SpecialStatusDuration.TryGetRadiateInfiniteStamAffliction(character, out Affliction_RadiateInfiniteStam radiateAffliction);
+            float unifiedRemaining = _infiniteStaminaUnifiedTimer.Tick(radiateActive, radiateActive ? radiateAffliction.totalTime : 0f, radiateActive ? radiateAffliction.timeElapsed : 0f, directActive, directRemaining);
+
+            if (unifiedRemaining >= 0f)
+            {
+                infStamHasData = true;
+                infStamRemainingSeconds = unifiedRemaining;
+                infStamRemainingFraction = _infiniteStaminaUnifiedTimer.TotalDuration > 0f ? Mathf.Clamp01(unifiedRemaining / _infiniteStaminaUnifiedTimer.TotalDuration) : 0f;
+                _infiniteStaminaGraceTracker.Reset();
+            }
+            else if (directActive)
+            {
+                infStamHasData = true;
+                infStamRemainingSeconds = directRemaining;
+                infStamRemainingFraction = directInfStam.totalTime > 0f ? Mathf.Clamp01(directRemaining / directInfStam.totalTime) : 0f;
+
+                if (_infiniteStaminaGraceTracker.TryGetRemainingGrace(directInfStam, out float graceRemaining))
+                {
+                    infStamGraceSuffix = "+" + Mathf.CeilToInt(graceRemaining);
+                }
+            }
+            else
+            {
+                infStamHasData = false;
+                _infiniteStaminaGraceTracker.Reset();
+            }
+
+
             if (_staminaCountLabel != null)
             {
-                if (!Plugin.Instance.Cfg.ShowVanillaBarCounts.Value)
+                if (character.infiniteStam && infStamHasData && showSpecialCounts)
+                {
+                    string secondsText = "(" + Mathf.CeilToInt(infStamRemainingSeconds) + "s" + infStamGraceSuffix + ")";
+                    string content = Plugin.Instance.Cfg.ShowVanillaBarCounts.Value ? ("∞ " + secondsText) : secondsText;
+                    _staminaCountLabel.Apply(_bar.maxStaminaBar, content, _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                }
+                else if (character.infiniteStam && !infStamHasData && showSpecialCounts)
+                {
+                    // freeze, same as the overlay below
+                }
+                else if (!Plugin.Instance.Cfg.ShowVanillaBarCounts.Value)
                 {
                     _staminaCountLabel.Hide();
                 }
@@ -366,6 +468,48 @@ namespace EffectPreview.Ui
             // CharacterData.isInvincible is internal to the game assembly, so this checks the same thing through the public affliction API instead
             bool realInvincible = character.refs.afflictions.HasAfflictionType(Affliction.AfflictionType.Invincibility, out _);
             _shieldArea?.Apply(preview.GrantsInvincibilityOnUse, realInvincible);
+
+            // shield's own active flag, not realInvincible, avoids a one-frame race with native's own StaminaBar.Update()
+            bool shieldActive = _bar.shield != null && _bar.shield.gameObject.activeSelf;
+
+            bool hasInvincibilityDuration = Preview.SpecialStatusDuration.TryGetInvincibilityRemaining(character, out float invincibilitySeconds, out _) && showSpecialCounts;
+            if (shieldActive && hasInvincibilityDuration && _shieldIconRect != null)
+            {
+                // lazy: shield sits inactive when not invincible, and a fresh component under an inactive hierarchy defers Awake()
+                if (_invincibilityCountLabel == null && _font != null)
+                {
+                    // parented above shield's masking ancestor or the label gets silently clipped
+                    _invincibilityCountLabel = BarLabel.Create(FindUnmaskedAncestorParent(_shieldIconRect), _font, _fontMaterial);
+                }
+                _invincibilityCountLabel?.Apply(_shieldIconRect, Mathf.CeilToInt(invincibilitySeconds).ToString(), _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value, extraVerticalOffset: 3f);
+            }
+            else if (!shieldActive)
+            {
+                _invincibilityCountLabel?.Hide();
+            }
+            // else: freeze
+
+            bool hasInvincibilityFraction = Preview.SpecialStatusDuration.TryGetInvincibilityRemaining(character, out _, out float invincibilityFraction) && showSpecialDurationVisual;
+            if (shieldActive && hasInvincibilityFraction)
+            {
+                _invincibilityBorderVisual?.Apply(invincibilityFraction);
+            }
+            else if (!shieldActive)
+            {
+                _invincibilityBorderVisual?.Hide();
+            }
+            // else: freeze
+
+            bool hasInfiniteStaminaFraction = infStamHasData && showSpecialDurationVisual;
+            if (!character.infiniteStam)
+            {
+                _infiniteStaminaDurationVisual?.Hide();
+            }
+            else if (hasInfiniteStaminaFraction)
+            {
+                _infiniteStaminaDurationVisual?.Apply(infStamRemainingFraction);
+            }
+            // else: freeze
         }
 
         // shared live/decrease/increase/cap computation for one status, reused across both GhostBadge passes so they stay in sync
@@ -414,6 +558,22 @@ namespace EffectPreview.Ui
             return increase - shrinkMagnitude;
         }
 
+        // returns the parent of the topmost Mask/RectMask2D ancestor in the chain, or start's own parent if none
+        private static Transform FindUnmaskedAncestorParent(Transform start)
+        {
+            Transform result = start.parent;
+            Transform current = start;
+            while (current != null)
+            {
+                if (current.GetComponent<Mask>() != null || current.GetComponent<RectMask2D>() != null)
+                {
+                    result = current.parent;
+                }
+                current = current.parent;
+            }
+            return result;
+        }
+
         private void HideAll()
         {
             foreach (GhostBadge badge in _statusGhosts.Values)
@@ -428,6 +588,11 @@ namespace EffectPreview.Ui
             _passOutBorderBlink?.Hide();
             _petrifyDeathBorderBlink?.Hide();
             _staminaCountLabel?.Hide();
+            _invincibilityBorderVisual?.Hide();
+            _infiniteStaminaDurationVisual?.Hide();
+            _invincibilityCountLabel?.Hide();
+            _infiniteStaminaGraceTracker.Reset();
+            _infiniteStaminaUnifiedTimer.Reset();
         }
     }
 }

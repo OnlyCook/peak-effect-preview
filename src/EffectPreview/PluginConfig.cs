@@ -11,6 +11,8 @@ namespace EffectPreview
         internal ConfigEntry<bool> ShowGhostBarCounts;
         internal ConfigEntry<bool> ShowVanillaBarCounts;
         internal ConfigEntry<float> BarCountFontScale;
+        internal ConfigEntry<bool> ShowSpecialStatusCounts;
+        internal ConfigEntry<bool> ShowSpecialStatusDurationVisual;
         internal ConfigEntry<bool> StickyThornRemoval;
         internal ConfigEntry<bool> EnableWorldObjectPreviews;
         internal ConfigEntry<bool> EnablePlayerEntityPreviews;
@@ -62,6 +64,10 @@ namespace EffectPreview
             BarCountFontScale = config.Bind("Bar Display", "bar-count-font-scale", 1f,
                                             new ConfigDescription("Multiplier applied on top of the automatic size-to-fit bar scaling used by both ghost/vanilla bar count numbers.",
                                             new AcceptableValueRange<float>(0.5f, 3f)));
+            ShowSpecialStatusCounts = config.Bind("Bar Display", "show-special-status-counts", false,
+                                                  "Show a number (in seconds) for how much longer the real invincibility and infinite stamina status effects will last - above the invincibility shield icon, and appended to the infinite stamina bar label.");
+            ShowSpecialStatusDurationVisual = config.Bind("Bar Display", "show-special-status-duration-visual", false,
+                                                          "Visualize how much longer the real invincibility/infinite stamina status effects will last directly on the bar itself: the invincibility border and infinite stamina rainbow overlay shrink from right to left as the effect's remaining duration runs out.");
         }
     }
 }

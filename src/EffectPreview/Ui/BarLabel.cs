@@ -128,7 +128,7 @@ namespace EffectPreview.Ui
             Apply(target, width >= requiredWidth ? fullText : beforeText, foreground, outlineColor, scaleMultiplier);
         }
 
-        internal void Apply(RectTransform target, string content, Color foreground, Color outlineColor, float scaleMultiplier)
+        internal void Apply(RectTransform target, string content, Color foreground, Color outlineColor, float scaleMultiplier, float extraVerticalOffset = 0f)
         {
             if (target == null || !target.gameObject.activeSelf || string.IsNullOrEmpty(content))
             {
@@ -155,7 +155,7 @@ namespace EffectPreview.Ui
 
             Vector3 pos = _text.rectTransform.position;
             pos.x = center.x;
-            pos.y = center.y + VerticalOffset;
+            pos.y = center.y + VerticalOffset + extraVerticalOffset;
             _text.rectTransform.position = pos;
 
             _text.text = content;

@@ -1,9 +1,12 @@
 ## 1.1.0
 
-- Added new `Interactions/enable-item-pickup-previews` (off by default) config setting to show the item's preview when aiming at it in reach to pick up. Thanks to JoeDummy001 for the suggestion!
+- Added 2 new config settings:
+    - `Bar-Display/show-special-status-duration` (off by default) which adds an animation to visualize the remaining duration of the *Invincibility* and *Infinite Stamina* status effects.
+    - `Bar-Display/show-special-status-counts` (off by default) shows labels of the stated duration in seconds above.
+- Added new `Interactions/enable-item-pickup-previews` (off by default) config setting to show the item's preview when aiming at an item in reach to pick up with empty hands. Thanks to JoeDummy001 for the suggestion!
 - Reworked bonus stamina and *Petrify* bar animation to be more in harmony and be slightly more relaxed.
-- Fixed weight removal preview not showing for Rescue Claw with only its last use remaining.
-- Fixed weight removal preview always showing for come deployables (Scout Cannon, Scout Effigy, Checkpoint Flag, and Portable Stove) even if not able to be placed.
+- Fixed weight removal preview not showing for held Rescue Claw with only its last use remaining.
+- Fixed weight removal preview always showing for some deployables (Scout Cannon, Scout Effigy, Checkpoint Flag, and Portable Stove) even if not able to be placed.
 
 ## 1.0.0
 
