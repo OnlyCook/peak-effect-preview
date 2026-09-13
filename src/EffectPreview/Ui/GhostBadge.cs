@@ -27,7 +27,7 @@ namespace EffectPreview.Ui
         private float _realDisplayedWidth;
 
         private GhostBadge(RectTransform realRtf, GameObject realIcon, Strip decreaseGhost, Strip increaseGhost, WasteIndicator decreaseWaste, WasteIndicator increaseWaste,
-            BarLabel decreaseCountLabel, BarLabel increaseCountLabel, BarLabel realCountLabel, GhostStatusCapIcon capIcon)
+            BarLabel decreaseCountLabel, BarLabel increaseCountLabel, BarLabel realCountLabel, GhostStatusCapIcon capIcon, bool isCurse)
         {
             _realRtf = realRtf;
             _realIcon = realIcon;
@@ -40,11 +40,16 @@ namespace EffectPreview.Ui
             _realCountLabel = realCountLabel;
             _capIcon = capIcon;
 
-            _vanillaForeground = decreaseGhost.FillColor;
-            _vanillaForeground.a = 1f;
-            _vanillaOutline = Common.ColorUtil.Darken(_vanillaForeground);
-            _ghostForeground = BarLabel.GhostTint(decreaseGhost.FillColor);
-            _ghostOutline = Common.ColorUtil.Darken(_ghostForeground);
+            if (isCurse)
+            {
+                BarLabel.PaletteCountColors(BarLabel.CurseText, BarLabel.CurseOutline, false, out _vanillaForeground, out _vanillaOutline);
+                BarLabel.PaletteCountColors(BarLabel.CurseText, BarLabel.CurseOutline, true, out _ghostForeground, out _ghostOutline);
+            }
+            else
+            {
+                BarLabel.CountColors(decreaseGhost.FillColor, false, out _vanillaForeground, out _vanillaOutline);
+                BarLabel.CountColors(decreaseGhost.FillColor, true, out _ghostForeground, out _ghostOutline);
+            }
         }
 
         internal bool IsValid => _realRtf != null && _decreaseGhost.IsValid && _increaseGhost.IsValid && _decreaseWaste.IsValid && _increaseWaste.IsValid
@@ -63,7 +68,7 @@ namespace EffectPreview.Ui
             GhostStatusCapIcon capIcon = GhostStatusCapIcon.Create(realAffliction.icon);
 
             GameObject realIcon = realAffliction.icon != null ? realAffliction.icon.gameObject : null;
-            return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost, decreaseWaste, increaseWaste, decreaseCountLabel, increaseCountLabel, realCountLabel, capIcon);
+            return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost, decreaseWaste, increaseWaste, decreaseCountLabel, increaseCountLabel, realCountLabel, capIcon, realAffliction.afflictionType == CharacterAfflictions.STATUSTYPE.Curse);
         }
 
         // decreaseActive: this frame's normal ghost-bar decrease (ApplyWidths) is already controlling the real icon's
@@ -286,6 +291,11 @@ namespace EffectPreview.Ui
 
                 // sampled before the tint loop below touches these colors, so this is still the vanilla, undimmed fill color
                 Color fillColor = WasteIndicator.SampleFillColor(go, icon);
+                Color.RGBToHSV(fillColor, out float _, out float fillSaturation, out float _);
+                if (icon != null && fillSaturation < 0.15f)
+                {
+                    fillColor = icon.color;
+                }
 
                 Image[] images = go.GetComponentsInChildren<Image>(includeInactive: true);
 

@@ -10,6 +10,7 @@ namespace EffectPreview
         internal ConfigEntry<bool> EnableRemovalBlink;
         internal ConfigEntry<bool> ShowGhostBarCounts;
         internal ConfigEntry<bool> ShowVanillaBarCounts;
+        internal ConfigEntry<bool> PlainBarCounts;
         internal ConfigEntry<float> BarCountFontScale;
         internal ConfigEntry<bool> ShowSpecialStatusCounts;
         internal ConfigEntry<bool> ShowSpecialStatusDurationVisual;
@@ -61,6 +62,8 @@ namespace EffectPreview
                                              "Show a number on each ghost preview bar (this mod's own) for how much it would add or remove.");
             ShowVanillaBarCounts = config.Bind("Bar Display", "show-vanilla-bar-counts", barCountsDefault,
                                                "Show a number on the game's own (non-ghost) bars for their current amount.");
+            PlainBarCounts = config.Bind("Bar Display", "plain-bar-counts", false,
+                                         "Draw every bar count number as plain white with a dark gray border, instead of tinting it to match its bar's color.");
             BarCountFontScale = config.Bind("Bar Display", "bar-count-font-scale", 1f,
                                             new ConfigDescription("Multiplier applied on top of the automatic size-to-fit bar scaling used by both ghost/vanilla bar count numbers.",
                                             new AcceptableValueRange<float>(0.5f, 3f)));

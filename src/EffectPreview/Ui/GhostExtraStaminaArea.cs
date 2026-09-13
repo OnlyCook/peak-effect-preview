@@ -77,11 +77,8 @@ namespace EffectPreview.Ui
             _waste = WasteIndicator.Create(_fillParent, fillColor);
             _ghostCountLabel = BarLabel.Create(_fillParent, font, fontMaterial);
             _realCountLabel = BarLabel.Create(_fillParent, font, fontMaterial);
-            _vanillaForeground = fillColor;
-            _vanillaForeground.a = 1f;
-            _vanillaOutline = Common.ColorUtil.Darken(_vanillaForeground);
-            _ghostForeground = BarLabel.GhostTint(fillColor);
-            _ghostOutline = Common.ColorUtil.Darken(_ghostForeground);
+            BarLabel.CountColors(fillColor, false, out _vanillaForeground, out _vanillaOutline);
+            BarLabel.CountColors(fillColor, true, out _ghostForeground, out _ghostOutline);
         }
 
         internal bool IsValid => _extraBar != null && _extraBarStamina != null && _extraBarOutline != null && _fillGhost.IsValid && (_icon == null || _icon.IsValid) && _waste.IsValid

@@ -180,9 +180,7 @@ namespace EffectPreview.Ui
             if (_staminaCountLabel == null && _bar.staminaBar != null && font != null)
             {
                 _staminaCountLabel = BarLabel.Create(_bar.staminaBar.parent, font, fontMaterial);
-                _staminaVanillaForeground = WasteIndicator.SampleFillColor(_bar.staminaBar.gameObject, null);
-                _staminaVanillaForeground.a = 1f;
-                _staminaVanillaOutline = Common.ColorUtil.Darken(_staminaVanillaForeground);
+                BarLabel.CountColors(WasteIndicator.SampleFillColor(_bar.staminaBar.gameObject, null), false, out _staminaVanillaForeground, out _staminaVanillaOutline);
             }
 
             if (_staminaArea == null && _bar.maxStaminaBar != null && _bar.staminaBar != null)

@@ -4,13 +4,17 @@ namespace EffectPreview.Common
 {
     internal static class ColorUtil
     {
-        // ripped from SoD
-        internal static Color Darken(Color color, float amount = 0.55f)
+        internal static float Luminance(Color color)
         {
-            Color.RGBToHSV(color, out float h, out float s, out float v);
-            Color darkened = Color.HSVToRGB(h, s, v * (1f - amount));
-            darkened.a = color.a;
-            return darkened;
+            Color linear = color.linear;
+            return 0.2126f * linear.r + 0.7152f * linear.g + 0.0722f * linear.b;
+        }
+
+        internal static float ContrastRatio(Color a, Color b)
+        {
+            float la = Luminance(a);
+            float lb = Luminance(b);
+            return (Mathf.Max(la, lb) + 0.05f) / (Mathf.Min(la, lb) + 0.05f);
         }
     }
 }

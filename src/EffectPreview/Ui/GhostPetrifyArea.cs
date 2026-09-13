@@ -62,11 +62,8 @@ namespace EffectPreview.Ui
             _increaseCountLabel = BarLabel.Create(_petrifyRtf.parent, font, fontMaterial);
             _decreaseCountLabel = BarLabel.Create(_petrifyRtf.parent, font, fontMaterial);
             _realCountLabel = BarLabel.Create(_petrifyRtf.parent, font, fontMaterial);
-            _vanillaForeground = fillColor;
-            _vanillaForeground.a = 1f;
-            _vanillaOutline = Common.ColorUtil.Darken(_vanillaForeground);
-            _ghostForeground = BarLabel.GhostTint(fillColor);
-            _ghostOutline = Common.ColorUtil.Darken(_ghostForeground);
+            BarLabel.PaletteCountColors(BarLabel.PetrifyText, BarLabel.PetrifyOutline, false, out _vanillaForeground, out _vanillaOutline);
+            BarLabel.PaletteCountColors(BarLabel.PetrifyText, BarLabel.PetrifyOutline, true, out _ghostForeground, out _ghostOutline);
         }
 
         internal bool IsValid => _petrifyRtf != null && _ghost.IsValid && _decreaseGhost.IsValid && (_icon == null || _icon.IsValid) && _increaseWaste.IsValid && _decreaseWaste.IsValid

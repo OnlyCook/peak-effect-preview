@@ -21,6 +21,10 @@ namespace EffectPreview.Ui
         // below this, the bar is too thin for a legible number anyway, and the label would sit right on top of/overlapping whatever's on the neighboring bar
         private const float MinWidthToShow = 10f;
 
+        private const float MinTextToOutlineContrast = 7f;
+
+        private static readonly Color PlainOutline = new Color(0.2f, 0.2f, 0.2f, 1f);
+
         // ghost text needs to stay legible over the HUD, so it's tinted lighter but far less transparent than the ghost bars themselves
         private const float GhostAlpha = 0.85f;
 
@@ -82,13 +86,45 @@ namespace EffectPreview.Ui
             return Mathf.FloorToInt(fraction * 100f + FormatCountEpsilon).ToString();
         }
 
-        // lightly translucent version of a raw fill color, so a ghost label still reads as "ghost" without losing legibility the way the ghost bars can
-        internal static Color GhostTint(Color color)
+        // light hue-tinted text with a dark hue-tinted outline, outline pushed darker until the ratio holds so it reads over any stripe or ghost behind it
+        // striped (blocked) statuses hand us their translucent stripe color, so alpha is dropped and only the hue is trusted
+        internal static void CountColors(Color barColor, bool ghost, out Color foreground, out Color outlineColor)
         {
-            Color c = Color.Lerp(color, Color.white, 0.4f);
-            c.a = GhostAlpha;
-            return c;
+            barColor.a = 1f;
+            Color.RGBToHSV(barColor, out float h, out float s, out float v);
+            float textSaturation = Mathf.Min(s, 0.7f);
+            Color fg = Color.HSVToRGB(h, textSaturation, 1f);
+            float outlineSaturation = s;
+            float outlineValue = 0.22f;
+            Color outline = Color.HSVToRGB(h, outlineSaturation, outlineValue);
+            for (int i = 0; i < 8 && Common.ColorUtil.ContrastRatio(fg, outline) < MinTextToOutlineContrast; i++)
+            {
+                outlineValue -= 0.03f;
+                outline = Color.HSVToRGB(h, outlineSaturation, Mathf.Max(0f, outlineValue));
+            }
+
+            foreground = fg;
+            outlineColor = outline;
+            if (ghost)
+            {
+                foreground.a = GhostAlpha;
+            }
         }
+
+        internal static void PaletteCountColors(Color fg, Color outline, bool ghost, out Color foreground, out Color outlineColor)
+        {
+            foreground = fg;
+            outlineColor = outline;
+            if (ghost)
+            {
+                foreground.a = GhostAlpha;
+            }
+        }
+
+        internal static readonly Color CurseText = new Color(0.60f, 0.54f, 0.75f);
+        internal static readonly Color CurseOutline = new Color(0.05f, 0.03f, 0.10f);
+        internal static readonly Color PetrifyText = new Color(0.72f, 0.75f, 0.85f);
+        internal static readonly Color PetrifyOutline = new Color(0.07f, 0.08f, 0.13f);
 
         // shows "before -> after" only when the item would actually bring the value DOWN and there's room for the full form; otherwise falls
         // back to just "before" - an increase is already visualized by this area's own ghost bar, so the transition only needs to cover the
@@ -157,6 +193,12 @@ namespace EffectPreview.Ui
             pos.x = center.x;
             pos.y = center.y + VerticalOffset + extraVerticalOffset;
             _text.rectTransform.position = pos;
+
+            if (Plugin.Instance.Cfg.PlainBarCounts.Value)
+            {
+                foreground = new Color(1f, 1f, 1f, foreground.a);
+                outlineColor = PlainOutline;
+            }
 
             _text.text = content;
             _text.color = foreground;
