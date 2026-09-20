@@ -179,7 +179,7 @@ namespace EffectPreview.Ui
                 {
                     continue;
                 }
-                _statusGhosts[affliction.afflictionType] = GhostBadge.Create(affliction, font, fontMaterial);
+                _statusGhosts[affliction.afflictionType] = GhostBadge.Create(affliction, font, fontMaterial, _bar.extraBar != null ? _bar.extraBar.transform.parent : affliction.rtf.parent);
             }
 
             if (_extraStaminaArea == null && _bar.extraBar != null && _bar.extraBarStamina != null && _bar.extraBarOutline != null && _bar.extraStaminaIcon != null)
@@ -194,8 +194,8 @@ namespace EffectPreview.Ui
 
             if (_staminaCountLabel == null && _bar.staminaBar != null && font != null)
             {
-                _staminaCountLabel = BarLabel.Create(_bar.staminaBar.parent, font, fontMaterial);
-                _staminaCountdownLabel = BarLabel.Create(FindUnmaskedAncestorParent(_bar.maxStaminaBar), font, fontMaterial, shadow: true);
+                _staminaCountLabel = BarLabel.Create(FindUnmaskedAncestorParent(_bar.maxStaminaBar), font, fontMaterial);
+                _staminaCountdownLabel = BarLabel.Create(_bar.extraBar != null ? _bar.extraBar.transform.parent : FindUnmaskedAncestorParent(_bar.maxStaminaBar), font, fontMaterial, shadow: true);
                 BarLabel.CountColors(WasteIndicator.SampleFillColor(_bar.staminaBar.gameObject, null), false, out _staminaVanillaForeground, out _staminaVanillaOutline);
             }
 

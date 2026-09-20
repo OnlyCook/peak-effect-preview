@@ -269,7 +269,7 @@ namespace EffectPreview.Ui
 
             Vector3 pos = _text.rectTransform.position;
             pos.x = center.x;
-            pos.y = (bottomAnchored ? _cornerBuffer[0].y : center.y + VerticalOffset) + extraVerticalOffset * _text.transform.parent.lossyScale.y;
+            pos.y = (bottomAnchored ? _cornerBuffer[0].y : center.y + VerticalOffset * _text.transform.localScale.y) + extraVerticalOffset * _text.transform.parent.lossyScale.y;
             _text.rectTransform.position = pos;
 
             if (Plugin.Instance.Cfg.PlainBarCounts.Value)

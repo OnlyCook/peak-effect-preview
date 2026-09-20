@@ -61,7 +61,7 @@ namespace EffectPreview.Ui
         internal bool IsValid => _realRtf != null && _decreaseGhost.IsValid && _increaseGhost.IsValid && _decreaseWaste.IsValid && _increaseWaste.IsValid
             && _decreaseCountLabel.IsValid && _increaseCountLabel.IsValid && _realCountLabel.IsValid && _countdownLabel.IsValid && (_capIcon == null || _capIcon.IsValid);
 
-        internal static GhostBadge Create(BarAffliction realAffliction, TMP_FontAsset font, Material fontMaterial)
+        internal static GhostBadge Create(BarAffliction realAffliction, TMP_FontAsset font, Material fontMaterial, Transform countdownParent)
         {
             RectTransform realBadge = realAffliction.rtf;
             Strip decreaseGhost = Strip.CloneFrom(realBadge, realBadge, isRemoval: true);
@@ -71,7 +71,7 @@ namespace EffectPreview.Ui
             BarLabel decreaseCountLabel = BarLabel.Create(realBadge.parent, font, fontMaterial);
             BarLabel increaseCountLabel = BarLabel.Create(realBadge.parent, font, fontMaterial);
             BarLabel realCountLabel = BarLabel.Create(realBadge.parent, font, fontMaterial);
-            BarLabel countdownLabel = BarLabel.Create(realBadge.parent, font, fontMaterial, shadow: true);
+            BarLabel countdownLabel = BarLabel.Create(countdownParent, font, fontMaterial, shadow: true);
             GhostStatusCapIcon capIcon = GhostStatusCapIcon.Create(realAffliction.icon);
 
             GameObject realIcon = realAffliction.icon != null ? realAffliction.icon.gameObject : null;
