@@ -42,6 +42,20 @@ namespace EffectPreview.Preview
             return affliction != null;
         }
 
+        internal static bool TryGetSpeedBoostAffliction(Character character, out Affliction_FasterBoi affliction)
+        {
+            affliction = null;
+            if (character == null || character.refs == null || character.refs.afflictions == null)
+            {
+                return false;
+            }
+            if (character.refs.afflictions.HasAfflictionType(Affliction.AfflictionType.FasterBoi, out Affliction found))
+            {
+                affliction = found as Affliction_FasterBoi; // let the boi be faster!
+            }
+            return affliction != null;
+        }
+
         private static bool TryGetRemaining(Character character, Affliction.AfflictionType type, out float remainingSeconds, out float remainingFraction)
         {
             remainingSeconds = 0f;

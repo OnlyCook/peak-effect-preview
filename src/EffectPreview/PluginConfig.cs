@@ -68,9 +68,9 @@ namespace EffectPreview
                                             new ConfigDescription("Multiplier applied on top of the automatic size-to-fit bar scaling used by both ghost/vanilla bar count numbers.",
                                             new AcceptableValueRange<float>(0.5f, 3f)));
             ShowSpecialStatusCounts = config.Bind("Bar Display", "show-special-status-counts", barCountsDefault,
-                                                  "Show a number (in seconds) for how much longer the real invincibility and infinite stamina status effects will last - above the invincibility shield icon, and appended to the infinite stamina bar label.");
+                                                  "Show a number (in seconds) for how much longer the real invincibility, infinite stamina and speed boost status effects will last - above the invincibility shield icon, appended to the infinite stamina bar label, and left of the speed boost line under the stamina bar.");
             ShowSpecialStatusDurationVisual = config.Bind("Bar Display", "show-special-status-duration-visual", true,
-                                                          "Visualize how much longer the real invincibility/infinite stamina status effects will last directly on the bar itself: the invincibility border and infinite stamina rainbow overlay shrink from right to left as the effect's remaining duration runs out.");
+                                                          "Visualize how much longer the real invincibility/infinite stamina/speed boost status effects will last: the invincibility border and infinite stamina rainbow overlay shrink from right to left on the bar itself, and a white line under the bar does the same for the speed boost.");
         }
     }
 }

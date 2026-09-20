@@ -3,26 +3,26 @@ using UnityEngine;
 
 namespace EffectPreview.Preview
 {
-    // tracks Big Lollypop's climb-grace countdown ourselves since Affliction.bonusTime is protected
+    // tracks a climb-grace countdown ourselves since Affliction.bonusTime is protected
     internal class InfiniteStaminaGraceTracker
     {
         private float _trackedOriginalGrace = -1f;
         private float _trackedElapsed;
 
         // true while timeElapsed is still 0 (grace not yet used up)
-        internal bool TryGetRemainingGrace(Affliction_InfiniteStamina affliction, out float remainingGraceSeconds)
+        internal bool TryGetRemainingGrace(Affliction affliction, float climbDelay, out float remainingGraceSeconds)
         {
             remainingGraceSeconds = 0f;
 
-            if (affliction == null || affliction.timeElapsed > 0.0005f || affliction.climbDelay <= 0.0005f)
+            if (affliction == null || affliction.timeElapsed > 0.0005f || climbDelay <= 0.0005f)
             {
                 Reset();
                 return false;
             }
 
-            if (_trackedOriginalGrace < 0f || !Mathf.Approximately(_trackedOriginalGrace, affliction.climbDelay))
+            if (_trackedOriginalGrace < 0f || !Mathf.Approximately(_trackedOriginalGrace, climbDelay))
             {
-                _trackedOriginalGrace = affliction.climbDelay;
+                _trackedOriginalGrace = climbDelay;
                 _trackedElapsed = 0f;
             }
 

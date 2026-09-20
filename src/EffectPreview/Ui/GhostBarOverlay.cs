@@ -39,6 +39,7 @@ namespace EffectPreview.Ui
         private InvincibilityBorderVisual _invincibilityBorderVisual;
         private InfiniteStaminaDurationVisual _infiniteStaminaDurationVisual;
         private BarLabel _invincibilityCountLabel;
+        private SpeedBoostDurationLine _speedBoostLine;
         private RectTransform _shieldIconRect;
         private Color _staminaVanillaForeground;
         private Color _staminaVanillaOutline;
@@ -46,6 +47,7 @@ namespace EffectPreview.Ui
         private UnityEngine.Material _fontMaterial;
         private readonly Preview.InfiniteStaminaGraceTracker _infiniteStaminaGraceTracker = new Preview.InfiniteStaminaGraceTracker();
         private readonly Preview.InfiniteStaminaUnifiedTimer _infiniteStaminaUnifiedTimer = new Preview.InfiniteStaminaUnifiedTimer();
+        private readonly Preview.InfiniteStaminaGraceTracker _speedBoostGraceTracker = new Preview.InfiniteStaminaGraceTracker();
 
         private void LateUpdate()
         {
@@ -70,6 +72,7 @@ namespace EffectPreview.Ui
                 _invincibilityBorderVisual = null;
                 _infiniteStaminaDurationVisual = null;
                 _invincibilityCountLabel = null;
+                _speedBoostLine = null;
                 _shieldIconRect = null;
                 _built = false;
             }
@@ -131,6 +134,10 @@ namespace EffectPreview.Ui
                 return true;
             }
             if (_invincibilityCountLabel != null && !_invincibilityCountLabel.IsValid)
+            {
+                return true;
+            }
+            if (_speedBoostLine != null && !_speedBoostLine.IsValid)
             {
                 return true;
             }
@@ -228,6 +235,11 @@ namespace EffectPreview.Ui
             if (_infiniteStaminaDurationVisual == null && _bar.rainbowStamina != null)
             {
                 _infiniteStaminaDurationVisual = new InfiniteStaminaDurationVisual(_bar.rainbowStamina.rectTransform);
+            }
+
+            if (_speedBoostLine == null && _bar.staminaBarOutline != null && _bar.extraBarOutline != null && _bar.extraBarOutline.parent != null)
+            {
+                _speedBoostLine = SpeedBoostDurationLine.Create(_bar.staminaBarOutline, _bar.extraBarOutline, FindUnmaskedAncestorParent(_bar.extraBar != null ? _bar.extraBar.transform : _bar.extraBarOutline), font, fontMaterial);
             }
 
             // _invincibilityCountLabel itself isn't created here (see note on its lazy creation in Refresh())
@@ -353,7 +365,7 @@ namespace EffectPreview.Ui
                 infStamRemainingSeconds = directRemaining;
                 infStamRemainingFraction = directInfStam.totalTime > 0f ? Mathf.Clamp01(directRemaining / directInfStam.totalTime) : 0f;
 
-                if (_infiniteStaminaGraceTracker.TryGetRemainingGrace(directInfStam, out float graceRemaining))
+                if (_infiniteStaminaGraceTracker.TryGetRemainingGrace(directInfStam, directInfStam.climbDelay, out float graceRemaining))
                 {
                     infStamGraceSuffix = "+" + Mathf.CeilToInt(graceRemaining);
                 }
@@ -508,6 +520,31 @@ namespace EffectPreview.Ui
                 _infiniteStaminaDurationVisual?.Apply(infStamRemainingFraction);
             }
             // else: freeze
+
+            RefreshSpeedBoost(character, showSpecialCounts, showSpecialDurationVisual);
+        }
+
+        private void RefreshSpeedBoost(Character character, bool showCounts, bool showVisual)
+        {
+            if (_speedBoostLine == null)
+            {
+                return;
+            }
+
+            if ((!showCounts && !showVisual) || !Preview.SpecialStatusDuration.TryGetSpeedBoostAffliction(character, out Affliction_FasterBoi boost) || boost.totalTime <= 0f)
+            {
+                _speedBoostGraceTracker.Reset();
+                _speedBoostLine.Hide();
+                return;
+            }
+
+            float remaining = Mathf.Max(0f, boost.totalTime - boost.timeElapsed);
+            string text = Mathf.CeilToInt(remaining) + "s";
+            if (_speedBoostGraceTracker.TryGetRemainingGrace(boost, boost.climbDelay, out float graceRemaining))
+            {
+                text += "+" + Mathf.CeilToInt(graceRemaining);
+            }
+            _speedBoostLine.Apply(remaining / boost.totalTime, text, showVisual, showCounts, Plugin.Instance.Cfg.BarCountFontScale.Value);
         }
 
         // shared live/decrease/increase/cap computation for one status, reused across both GhostBadge passes so they stay in sync
@@ -589,6 +626,8 @@ namespace EffectPreview.Ui
             _invincibilityBorderVisual?.Hide();
             _infiniteStaminaDurationVisual?.Hide();
             _invincibilityCountLabel?.Hide();
+            _speedBoostLine?.Hide();
+            _speedBoostGraceTracker.Reset();
             _infiniteStaminaGraceTracker.Reset();
             _infiniteStaminaUnifiedTimer.Reset();
         }

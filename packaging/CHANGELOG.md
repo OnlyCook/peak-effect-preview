@@ -1,3 +1,7 @@
+## 1.1.1
+
+- Fixed Invincibility remaining duration border being misplaced and not scaled correctly for displays with non-16:9 aspect ratios.
+
 ## 1.1.0
 
 - Added 2 new config settings:
