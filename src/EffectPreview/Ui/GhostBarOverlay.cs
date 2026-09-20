@@ -50,6 +50,7 @@ namespace EffectPreview.Ui
         private UnityEngine.Material _fontMaterial;
         private readonly Preview.InfiniteStaminaGraceTracker _infiniteStaminaGraceTracker = new Preview.InfiniteStaminaGraceTracker();
         private readonly Preview.InfiniteStaminaUnifiedTimer _infiniteStaminaUnifiedTimer = new Preview.InfiniteStaminaUnifiedTimer();
+        private readonly Preview.ExternalInfiniteStaminaDetector _externalInfiniteStamina = new Preview.ExternalInfiniteStaminaDetector();
         private readonly Preview.InfiniteStaminaGraceTracker _speedBoostGraceTracker = new Preview.InfiniteStaminaGraceTracker();
 
         private void LateUpdate()
@@ -346,6 +347,7 @@ namespace EffectPreview.Ui
             {
                 _infiniteStaminaGraceTracker.Reset();
                 _infiniteStaminaUnifiedTimer.Reset();
+                _externalInfiniteStamina.Reset();
             }
 
             bool infStamHasData;
@@ -363,7 +365,15 @@ namespace EffectPreview.Ui
             bool radiateActive = Preview.SpecialStatusDuration.TryGetRadiateInfiniteStamAffliction(character, out Affliction_RadiateInfiniteStam radiateAffliction);
             float unifiedRemaining = _infiniteStaminaUnifiedTimer.Tick(radiateActive, radiateActive ? radiateAffliction.totalTime : 0f, radiateActive ? radiateAffliction.timeElapsed : 0f, directActive, directRemaining);
 
-            if (unifiedRemaining >= 0f)
+            _externalInfiniteStamina.Tick(directActive, directActive ? directInfStam.timeElapsed : 0f);
+            bool infStamExternal = unifiedRemaining < 0f && _externalInfiniteStamina.IsExternal;
+
+            if (infStamExternal)
+            {
+                infStamHasData = false;
+                _infiniteStaminaGraceTracker.Reset();
+            }
+            else if (unifiedRemaining >= 0f)
             {
                 infStamHasData = true;
                 infStamRemainingSeconds = unifiedRemaining;
@@ -402,7 +412,7 @@ namespace EffectPreview.Ui
                         _staminaCountLabel.Hide();
                     }
                 }
-                else if (character.infiniteStam && !infStamHasData && showSpecialCounts)
+                else if (character.infiniteStam && !infStamHasData && !infStamExternal && showSpecialCounts)
                 {
                     // freeze, same as the overlay below
                     infStamFrozen = true;
@@ -542,9 +552,13 @@ namespace EffectPreview.Ui
             {
                 _infiniteStaminaDurationVisual?.Hide();
             }
+            else if (infStamExternal)
+            {
+                _infiniteStaminaDurationVisual?.Hide();
+            }
             else if (hasInfiniteStaminaFraction)
             {
-                _infiniteStaminaDurationVisual?.Apply(infStamRemainingFraction);
+                _infiniteStaminaDurationVisual?.Apply(infStamRemainingFraction, _bar.maxStaminaBar.rect.width);
             }
             // else: freeze
 
@@ -658,6 +672,7 @@ namespace EffectPreview.Ui
             _speedBoostGraceTracker.Reset();
             _infiniteStaminaGraceTracker.Reset();
             _infiniteStaminaUnifiedTimer.Reset();
+            _externalInfiniteStamina.Reset();
         }
     }
 }

@@ -4,7 +4,8 @@
 - Added Energy Drink's *Speed Boost* to `Bar-Display/show-special-status-duration` which visualizes it's remaining duration with a custom bar.
 - Updated *Infinite Stamina* remaining duration label placement.
 - Fixed count labels itself and their scaling center being slightly misplaced.
-- Fixed Invincibility remaining duration border being misplaced and not scaled correctly for displays with non-16:9 aspect ratios.
+- Fixed *Invincibility* remaining duration border being misplaced and not scaling correctly for displays with non-16:9 aspect ratios.
+- Stopped *Infinite Stamina* duration visualization when getting the effect externally from another player in coop (since it would cause flickering and cannot be predicted well).
 
 ## 1.1.0
 
