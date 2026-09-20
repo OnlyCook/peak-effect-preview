@@ -38,16 +38,89 @@ namespace EffectPreview.Ui
         private readonly TextMeshProUGUI _text;
         private readonly Vector3[] _cornerBuffer = new Vector3[4];
 
-        private BarLabel(TextMeshProUGUI text)
+        private static readonly Color ShadowColor = new Color(1f, 1f, 1f, 0.55f);
+        private const float ShadowWidthPadding = 12f;
+        private const float ShadowHeight = 22f;
+        private const int ShadowTexSize = 32;
+        private const int ShadowBorder = 14;
+        private const float ShadowCornerRadius = 12f;
+        private const float ShadowFade = 8f;
+
+        private static Sprite _shadowSprite;
+
+        private static RectTransform _shadowLayer;
+
+        private readonly RectTransform _shadow;
+        private readonly UnityEngine.UI.Image _shadowImage;
+
+        private BarLabel(TextMeshProUGUI text, RectTransform shadow, UnityEngine.UI.Image shadowImage)
         {
+            _shadowImage = shadowImage;
             _text = text;
+            _shadow = shadow;
+        }
+
+        private static Sprite GetShadowSprite()
+        {
+            if (_shadowSprite == null)
+            {
+                Texture2D tex = new Texture2D(ShadowTexSize, ShadowTexSize, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                for (int y = 0; y < ShadowTexSize; y++)
+                {
+                    for (int x = 0; x < ShadowTexSize; x++)
+                    {
+                        float half = ShadowTexSize * 0.5f;
+                        float qx = Mathf.Max(Mathf.Abs(x + 0.5f - half) - (half - ShadowCornerRadius), 0f);
+                        float qy = Mathf.Max(Mathf.Abs(y + 0.5f - half) - (half - ShadowCornerRadius), 0f);
+                        float distance = Mathf.Sqrt(qx * qx + qy * qy) - ShadowCornerRadius;
+                        float alpha = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(-distance / ShadowFade));
+                        tex.SetPixel(x, y, new Color(0f, 0f, 0f, alpha));
+                    }
+                }
+                tex.Apply();
+                _shadowSprite = Sprite.Create(tex, new Rect(0f, 0f, ShadowTexSize, ShadowTexSize), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(ShadowBorder, ShadowBorder, ShadowBorder, ShadowBorder));
+            }
+            return _shadowSprite;
+        }
+
+        // one shared layer per row so every shadow sits below every shadowed label, never covering a neighbor's text
+        private static RectTransform GetShadowLayer(Transform parent)
+        {
+            if (_shadowLayer == null || _shadowLayer.parent != parent)
+            {
+                GameObject layer = new GameObject("EffectPreview ShadowLayer", typeof(RectTransform), typeof(UnityEngine.UI.LayoutElement));
+                _shadowLayer = (RectTransform)layer.transform;
+                _shadowLayer.SetParent(parent, worldPositionStays: false);
+                _shadowLayer.anchorMin = (_shadowLayer.anchorMax = (_shadowLayer.pivot = new Vector2(0.5f, 0.5f)));
+                layer.GetComponent<UnityEngine.UI.LayoutElement>().ignoreLayout = true;
+                Common.GhostOwnershipTag.Attach(layer);
+            }
+            return _shadowLayer;
         }
 
         internal bool IsValid => _text != null;
 
         // font/fontMaterial: the game's own TMP font asset/material (e.g. StaminaBar.moraleBoostText's), so this reads as native UI rather than a mod font
-        internal static BarLabel Create(Transform parent, TMP_FontAsset font, Material fontMaterial)
+        internal static BarLabel Create(Transform parent, TMP_FontAsset font, Material fontMaterial, bool shadow = false)
         {
+            RectTransform shadowRtf = null;
+            UnityEngine.UI.Image shadowImage = null;
+            if (shadow)
+            {
+                RectTransform layer = GetShadowLayer(parent);
+                GameObject shadowGo = new GameObject("EffectPreview LabelShadow", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+                shadowRtf = (RectTransform)shadowGo.transform;
+                shadowRtf.SetParent(layer, worldPositionStays: false);
+                shadowRtf.anchorMin = (shadowRtf.anchorMax = (shadowRtf.pivot = new Vector2(0.5f, 0.5f)));
+                UnityEngine.UI.Image image = shadowImage = shadowGo.GetComponent<UnityEngine.UI.Image>();
+                image.sprite = GetShadowSprite();
+                image.type = UnityEngine.UI.Image.Type.Sliced;
+                image.color = ShadowColor;
+                image.raycastTarget = false;
+                Common.GhostOwnershipTag.Attach(shadowGo);
+                shadowGo.SetActive(false);
+            }
+
             GameObject go = new GameObject("EffectPreview BarLabel", typeof(RectTransform), typeof(UnityEngine.UI.LayoutElement));
             RectTransform rtf = (RectTransform)go.transform;
             rtf.SetParent(parent, worldPositionStays: false);
@@ -74,7 +147,7 @@ namespace EffectPreview.Ui
 
             Common.GhostOwnershipTag.Attach(go);
             go.SetActive(false);
-            return new BarLabel(text);
+            return new BarLabel(text, shadowRtf, shadowImage);
         }
 
         // truncates to the same 0-100 "count" scale the mod's status fractions represent (0.10 -> "10")
@@ -164,7 +237,7 @@ namespace EffectPreview.Ui
             Apply(target, width >= requiredWidth ? fullText : beforeText, foreground, outlineColor, scaleMultiplier);
         }
 
-        internal void Apply(RectTransform target, string content, Color foreground, Color outlineColor, float scaleMultiplier, float extraVerticalOffset = 0f)
+        internal void Apply(RectTransform target, string content, Color foreground, Color outlineColor, float scaleMultiplier, float extraVerticalOffset = 0f, bool bottomAnchored = false, float minBoxWidth = 0f)
         {
             if (target == null || !target.gameObject.activeSelf || string.IsNullOrEmpty(content))
             {
@@ -186,12 +259,12 @@ namespace EffectPreview.Ui
 
             _text.gameObject.SetActive(true);
             _text.transform.SetAsLastSibling();
-            _text.rectTransform.sizeDelta = new Vector2(Mathf.Max(1f, width - WidthPadding), BoxHeight);
+            _text.rectTransform.sizeDelta = new Vector2(Mathf.Max(1f, width - WidthPadding, minBoxWidth), BoxHeight);
             _text.transform.localScale = Vector3.one * Mathf.Max(0.01f, scaleMultiplier);
 
             Vector3 pos = _text.rectTransform.position;
             pos.x = center.x;
-            pos.y = center.y + VerticalOffset + extraVerticalOffset;
+            pos.y = (bottomAnchored ? _cornerBuffer[0].y : center.y + VerticalOffset) + extraVerticalOffset * _text.transform.parent.lossyScale.y;
             _text.rectTransform.position = pos;
 
             if (Plugin.Instance.Cfg.PlainBarCounts.Value)
@@ -203,6 +276,15 @@ namespace EffectPreview.Ui
             _text.text = content;
             _text.color = foreground;
             _text.outlineColor = outlineColor;
+
+            if (_shadow != null)
+            {
+                _shadow.gameObject.SetActive(true);
+                float shadowScale = _text.transform.localScale.x;
+                _shadow.sizeDelta = new Vector2(_text.renderedWidth + ShadowWidthPadding, ShadowHeight) * shadowScale;
+                _shadowImage.pixelsPerUnitMultiplier = Mathf.Max(0.01f, ShadowBorder / (ShadowHeight * shadowScale * 0.5f));
+                _shadow.position = _text.rectTransform.position;
+            }
         }
 
         internal void Hide()
@@ -210,6 +292,10 @@ namespace EffectPreview.Ui
             if (_text != null)
             {
                 _text.gameObject.SetActive(false);
+            }
+            if (_shadow != null)
+            {
+                _shadow.gameObject.SetActive(false);
             }
         }
     }

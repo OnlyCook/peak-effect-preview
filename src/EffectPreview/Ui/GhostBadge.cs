@@ -1,3 +1,4 @@
+using HarmonyLib;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,6 +9,9 @@ namespace EffectPreview.Ui
     internal class GhostBadge
     {
         private const float LerpStep100Fps = 0.1f;
+        private const float CountdownScale = 0.64f;
+        private const float CountdownMinBoxWidth = 80f;
+        private static readonly AccessTools.FieldRef<ThornOnMe, float> ThornPopOutTime = AccessTools.FieldRefAccess<ThornOnMe, float>("popOutTime");
 
         private readonly RectTransform _realRtf;
         private readonly GameObject _realIcon;
@@ -18,17 +22,20 @@ namespace EffectPreview.Ui
         private readonly BarLabel _decreaseCountLabel;
         private readonly BarLabel _increaseCountLabel;
         private readonly BarLabel _realCountLabel;
+        private readonly BarLabel _countdownLabel;
         private readonly GhostStatusCapIcon _capIcon;
         private readonly Color _vanillaForeground;
         private readonly Color _vanillaOutline;
         private readonly Color _ghostForeground;
         private readonly Color _ghostOutline;
+        private readonly CharacterAfflictions.STATUSTYPE _statusType;
         private bool _realShrinking;
         private float _realDisplayedWidth;
 
         private GhostBadge(RectTransform realRtf, GameObject realIcon, Strip decreaseGhost, Strip increaseGhost, WasteIndicator decreaseWaste, WasteIndicator increaseWaste,
-            BarLabel decreaseCountLabel, BarLabel increaseCountLabel, BarLabel realCountLabel, GhostStatusCapIcon capIcon, bool isCurse)
+            BarLabel decreaseCountLabel, BarLabel increaseCountLabel, BarLabel realCountLabel, BarLabel countdownLabel, GhostStatusCapIcon capIcon, CharacterAfflictions.STATUSTYPE statusType)
         {
+            _statusType = statusType;
             _realRtf = realRtf;
             _realIcon = realIcon;
             _decreaseGhost = decreaseGhost;
@@ -38,9 +45,10 @@ namespace EffectPreview.Ui
             _decreaseCountLabel = decreaseCountLabel;
             _increaseCountLabel = increaseCountLabel;
             _realCountLabel = realCountLabel;
+            _countdownLabel = countdownLabel;
             _capIcon = capIcon;
 
-            if (isCurse)
+            if (statusType == CharacterAfflictions.STATUSTYPE.Curse)
             {
                 BarLabel.PaletteCountColors(BarLabel.CurseText, BarLabel.CurseOutline, false, out _vanillaForeground, out _vanillaOutline);
                 BarLabel.PaletteCountColors(BarLabel.CurseText, BarLabel.CurseOutline, true, out _ghostForeground, out _ghostOutline);
@@ -53,7 +61,7 @@ namespace EffectPreview.Ui
         }
 
         internal bool IsValid => _realRtf != null && _decreaseGhost.IsValid && _increaseGhost.IsValid && _decreaseWaste.IsValid && _increaseWaste.IsValid
-            && _decreaseCountLabel.IsValid && _increaseCountLabel.IsValid && _realCountLabel.IsValid && (_capIcon == null || _capIcon.IsValid);
+            && _decreaseCountLabel.IsValid && _increaseCountLabel.IsValid && _realCountLabel.IsValid && _countdownLabel.IsValid && (_capIcon == null || _capIcon.IsValid);
 
         internal static GhostBadge Create(BarAffliction realAffliction, TMP_FontAsset font, Material fontMaterial)
         {
@@ -65,10 +73,11 @@ namespace EffectPreview.Ui
             BarLabel decreaseCountLabel = BarLabel.Create(realBadge.parent, font, fontMaterial);
             BarLabel increaseCountLabel = BarLabel.Create(realBadge.parent, font, fontMaterial);
             BarLabel realCountLabel = BarLabel.Create(realBadge.parent, font, fontMaterial);
+            BarLabel countdownLabel = BarLabel.Create(realBadge.parent, font, fontMaterial, shadow: true);
             GhostStatusCapIcon capIcon = GhostStatusCapIcon.Create(realAffliction.icon);
 
             GameObject realIcon = realAffliction.icon != null ? realAffliction.icon.gameObject : null;
-            return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost, decreaseWaste, increaseWaste, decreaseCountLabel, increaseCountLabel, realCountLabel, capIcon, realAffliction.afflictionType == CharacterAfflictions.STATUSTYPE.Curse);
+            return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost, decreaseWaste, increaseWaste, decreaseCountLabel, increaseCountLabel, realCountLabel, countdownLabel, capIcon, realAffliction.afflictionType);
         }
 
         // decreaseActive: this frame's normal ghost-bar decrease (ApplyWidths) is already controlling the real icon's
@@ -204,14 +213,83 @@ namespace EffectPreview.Ui
                 _increaseCountLabel.Hide();
             }
 
-            if (Plugin.Instance.Cfg.ShowVanillaBarCounts.Value)
+            bool showCount = Plugin.Instance.Cfg.ShowVanillaBarCounts.Value;
+            bool showCountdown = Plugin.Instance.Cfg.ShowAfflictionCountdowns.Value;
+            bool live = postDecreaseLive > 0.0005f;
+            if (showCount && live)
             {
-                _realCountLabel.Apply(_realRtf, postDecreaseLive > 0.0005f ? BarLabel.FormatCount(postDecreaseLive) : null, _vanillaForeground, _vanillaOutline, fontScale);
+                _realCountLabel.Apply(_realRtf, BarLabel.FormatCount(postDecreaseLive), _vanillaForeground, _vanillaOutline, fontScale);
             }
             else
             {
                 _realCountLabel.Hide();
             }
+
+            string countdown = showCountdown && live ? FormatCountdown(postDecreaseLive) : null;
+            if (countdown != null)
+            {
+                _countdownLabel.Apply(_realRtf, countdown, _vanillaForeground, _vanillaOutline, Plugin.Instance.Cfg.AfflictionCountdownFontScale.Value * CountdownScale, extraVerticalOffset: -6f, bottomAnchored: true, minBoxWidth: CountdownMinBoxWidth);
+            }
+            else
+            {
+                _countdownLabel.Hide();
+            }
+        }
+
+        private string FormatCountdown(float value)
+        {
+            CharacterAfflictions afflictions = Character.localCharacter?.refs.afflictions;
+            if (afflictions == null)
+            {
+                return null;
+            }
+
+            if (_statusType == CharacterAfflictions.STATUSTYPE.Thorns)
+            {
+                float latest = 0f;
+                for (int i = 0; i < afflictions.physicalThorns.Count; i++)
+                {
+                    ThornOnMe thorn = afflictions.physicalThorns[i];
+                    if (thorn != null && thorn.stuckIn && thorn.isThorn && thorn.popsOutAutomatically)
+                    {
+                        latest = Mathf.Max(latest, ThornPopOutTime(thorn));
+                    }
+                }
+                float remaining = latest - Time.time;
+                return remaining > 0f ? "(" + Mathf.CeilToInt(remaining) + "s)" : null;
+            }
+
+            float perSecond;
+            float cooldown;
+            switch (_statusType)
+            {
+                case CharacterAfflictions.STATUSTYPE.Poison:
+                    perSecond = afflictions.poisonReductionPerSecond;
+                    cooldown = afflictions.poisonReductionCooldown;
+                    break;
+                case CharacterAfflictions.STATUSTYPE.Drowsy:
+                    perSecond = afflictions.drowsyReductionPerSecond;
+                    cooldown = afflictions.drowsyReductionCooldown;
+                    break;
+                case CharacterAfflictions.STATUSTYPE.Hot:
+                    perSecond = afflictions.hotReductionPerSecond;
+                    cooldown = afflictions.hotReductionCooldown;
+                    break;
+                case CharacterAfflictions.STATUSTYPE.Spores:
+                    perSecond = afflictions.sporesReductionPerSecond;
+                    cooldown = afflictions.sporesReductionCooldown;
+                    break;
+                default:
+                    return null;
+            }
+            if (perSecond <= 0f)
+            {
+                return null;
+            }
+
+            float wait = Mathf.Max(0f, cooldown - (Time.time - afflictions.LastAddedStatus(_statusType)));
+            int decaySeconds = Mathf.CeilToInt(value / perSecond - 0.0005f);
+            return wait > 0f ? "(" + decaySeconds + "s+" + Mathf.CeilToInt(wait) + ")" : "(" + decaySeconds + "s)";
         }
 
         internal void Hide()
@@ -224,6 +302,7 @@ namespace EffectPreview.Ui
             _decreaseCountLabel.Hide();
             _increaseCountLabel.Hide();
             _realCountLabel.Hide();
+            _countdownLabel.Hide();
             _capIcon?.Hide();
             if (_realIcon != null)
             {

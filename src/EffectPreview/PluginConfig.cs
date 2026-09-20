@@ -10,6 +10,8 @@ namespace EffectPreview
         internal ConfigEntry<bool> EnableRemovalBlink;
         internal ConfigEntry<bool> ShowGhostBarCounts;
         internal ConfigEntry<bool> ShowVanillaBarCounts;
+        internal ConfigEntry<bool> ShowAfflictionCountdowns;
+        internal ConfigEntry<float> AfflictionCountdownFontScale;
         internal ConfigEntry<bool> PlainBarCounts;
         internal ConfigEntry<float> BarCountFontScale;
         internal ConfigEntry<bool> ShowSpecialStatusCounts;
@@ -62,6 +64,11 @@ namespace EffectPreview
                                              "Show a number on each ghost preview bar (this mod's own) for how much it would add or remove.");
             ShowVanillaBarCounts = config.Bind("Bar Display", "show-vanilla-bar-counts", barCountsDefault,
                                                "Show a number on the game's own (non-ghost) bars for their current amount.");
+            ShowAfflictionCountdowns = config.Bind("Bar Display", "show-affliction-countdowns", barCountsDefault,
+                                                   "Show a small countdown under the game's own affliction bars, like 10s+45: 10s is how long until the status effect is fully gone, +45 is how many seconds remain before it starts wearing off.");
+            AfflictionCountdownFontScale = config.Bind("Bar Display", "affliction-countdown-font-scale", 1f,
+                                                       new ConfigDescription("Multiplier for the size of the affliction countdown text, independent of bar-count-font-scale.",
+                                                       new AcceptableValueRange<float>(0.5f, 3f)));
             PlainBarCounts = config.Bind("Bar Display", "plain-bar-counts", false,
                                          "Draw every bar count number as plain white with a dark gray border, instead of tinting it to match its bar's color.");
             BarCountFontScale = config.Bind("Bar Display", "bar-count-font-scale", 1f,
