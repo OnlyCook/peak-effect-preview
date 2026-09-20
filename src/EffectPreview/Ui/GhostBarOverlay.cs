@@ -36,6 +36,9 @@ namespace EffectPreview.Ui
         private BorderWarningBlink _passOutBorderBlink;
         private BorderWarningBlink _petrifyDeathBorderBlink;
         private BarLabel _staminaCountLabel;
+        private const float StaminaCountdownRaise = 12f;
+
+        private BarLabel _staminaCountdownLabel;
         private InvincibilityBorderVisual _invincibilityBorderVisual;
         private InfiniteStaminaDurationVisual _infiniteStaminaDurationVisual;
         private BarLabel _invincibilityCountLabel;
@@ -69,6 +72,7 @@ namespace EffectPreview.Ui
                 _passOutBorderBlink = null;
                 _petrifyDeathBorderBlink = null;
                 _staminaCountLabel = null;
+                _staminaCountdownLabel = null;
                 _invincibilityBorderVisual = null;
                 _infiniteStaminaDurationVisual = null;
                 _invincibilityCountLabel = null;
@@ -118,6 +122,10 @@ namespace EffectPreview.Ui
                 return true;
             }
             if (_petrifyDeathBorderBlink != null && !_petrifyDeathBorderBlink.IsValid)
+            {
+                return true;
+            }
+            if (_staminaCountdownLabel != null && !_staminaCountdownLabel.IsValid)
             {
                 return true;
             }
@@ -187,6 +195,7 @@ namespace EffectPreview.Ui
             if (_staminaCountLabel == null && _bar.staminaBar != null && font != null)
             {
                 _staminaCountLabel = BarLabel.Create(_bar.staminaBar.parent, font, fontMaterial);
+                _staminaCountdownLabel = BarLabel.Create(FindUnmaskedAncestorParent(_bar.maxStaminaBar), font, fontMaterial, shadow: true);
                 BarLabel.CountColors(WasteIndicator.SampleFillColor(_bar.staminaBar.gameObject, null), false, out _staminaVanillaForeground, out _staminaVanillaOutline);
             }
 
@@ -343,6 +352,8 @@ namespace EffectPreview.Ui
             float infStamRemainingSeconds = 0f;
             float infStamRemainingFraction = 0f;
             string infStamGraceSuffix = null;
+            string infStamCountdown = null;
+            bool infStamFrozen = false;
 
             // read even while Radiate is active
             // it may have been separately extended
@@ -381,13 +392,20 @@ namespace EffectPreview.Ui
             {
                 if (character.infiniteStam && infStamHasData && showSpecialCounts)
                 {
-                    string secondsText = "(" + Mathf.CeilToInt(infStamRemainingSeconds) + "s" + infStamGraceSuffix + ")";
-                    string content = Plugin.Instance.Cfg.ShowVanillaBarCounts.Value ? ("∞ " + secondsText) : secondsText;
-                    _staminaCountLabel.Apply(_bar.maxStaminaBar, content, _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                    infStamCountdown = "(" + Mathf.CeilToInt(infStamRemainingSeconds) + "s" + infStamGraceSuffix + ")";
+                    if (Plugin.Instance.Cfg.ShowVanillaBarCounts.Value)
+                    {
+                        _staminaCountLabel.Apply(_bar.maxStaminaBar, "∞", _staminaVanillaForeground, _staminaVanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                    }
+                    else
+                    {
+                        _staminaCountLabel.Hide();
+                    }
                 }
                 else if (character.infiniteStam && !infStamHasData && showSpecialCounts)
                 {
                     // freeze, same as the overlay below
+                    infStamFrozen = true;
                 }
                 else if (!Plugin.Instance.Cfg.ShowVanillaBarCounts.Value)
                 {
@@ -423,6 +441,15 @@ namespace EffectPreview.Ui
                 else
                 {
                     _staminaCountLabel.Hide();
+                }
+
+                if (infStamCountdown != null)
+                {
+                    _staminaCountdownLabel.ApplyCountdown(_bar.maxStaminaBar, infStamCountdown, _staminaVanillaForeground, _staminaVanillaOutline, StaminaCountdownRaise);
+                }
+                else if (!infStamFrozen)
+                {
+                    _staminaCountdownLabel.Hide();
                 }
             }
 
@@ -623,6 +650,7 @@ namespace EffectPreview.Ui
             _passOutBorderBlink?.Hide();
             _petrifyDeathBorderBlink?.Hide();
             _staminaCountLabel?.Hide();
+            _staminaCountdownLabel?.Hide();
             _invincibilityBorderVisual?.Hide();
             _infiniteStaminaDurationVisual?.Hide();
             _invincibilityCountLabel?.Hide();

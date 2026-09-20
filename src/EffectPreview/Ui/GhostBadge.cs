@@ -9,8 +9,6 @@ namespace EffectPreview.Ui
     internal class GhostBadge
     {
         private const float LerpStep100Fps = 0.1f;
-        private const float CountdownScale = 0.64f;
-        private const float CountdownMinBoxWidth = 80f;
         private static readonly AccessTools.FieldRef<ThornOnMe, float> ThornPopOutTime = AccessTools.FieldRefAccess<ThornOnMe, float>("popOutTime");
 
         private readonly RectTransform _realRtf;
@@ -228,7 +226,7 @@ namespace EffectPreview.Ui
             string countdown = showCountdown && live ? FormatCountdown(postDecreaseLive) : null;
             if (countdown != null)
             {
-                _countdownLabel.Apply(_realRtf, countdown, _vanillaForeground, _vanillaOutline, Plugin.Instance.Cfg.AfflictionCountdownFontScale.Value * CountdownScale, extraVerticalOffset: -6f, bottomAnchored: true, minBoxWidth: CountdownMinBoxWidth);
+                _countdownLabel.ApplyCountdown(_realRtf, countdown, _vanillaForeground, _vanillaOutline);
             }
             else
             {

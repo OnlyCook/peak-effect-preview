@@ -48,7 +48,11 @@ namespace EffectPreview.Ui
 
         private static Sprite _shadowSprite;
 
-        private static RectTransform _shadowLayer;
+        private static readonly System.Collections.Generic.Dictionary<Transform, RectTransform> ShadowLayers = new System.Collections.Generic.Dictionary<Transform, RectTransform>();
+
+        private const float CountdownScale = 0.64f;
+        private const float CountdownMinBoxWidth = 80f;
+        private const float CountdownVerticalOffset = -6f;
 
         private readonly RectTransform _shadow;
         private readonly UnityEngine.UI.Image _shadowImage;
@@ -86,16 +90,17 @@ namespace EffectPreview.Ui
         // one shared layer per row so every shadow sits below every shadowed label, never covering a neighbor's text
         private static RectTransform GetShadowLayer(Transform parent)
         {
-            if (_shadowLayer == null || _shadowLayer.parent != parent)
+            if (!ShadowLayers.TryGetValue(parent, out RectTransform layerRtf) || layerRtf == null)
             {
                 GameObject layer = new GameObject("EffectPreview ShadowLayer", typeof(RectTransform), typeof(UnityEngine.UI.LayoutElement));
-                _shadowLayer = (RectTransform)layer.transform;
-                _shadowLayer.SetParent(parent, worldPositionStays: false);
-                _shadowLayer.anchorMin = (_shadowLayer.anchorMax = (_shadowLayer.pivot = new Vector2(0.5f, 0.5f)));
+                layerRtf = (RectTransform)layer.transform;
+                layerRtf.SetParent(parent, worldPositionStays: false);
+                layerRtf.anchorMin = (layerRtf.anchorMax = (layerRtf.pivot = new Vector2(0.5f, 0.5f)));
                 layer.GetComponent<UnityEngine.UI.LayoutElement>().ignoreLayout = true;
                 Common.GhostOwnershipTag.Attach(layer);
+                ShadowLayers[parent] = layerRtf;
             }
-            return _shadowLayer;
+            return layerRtf;
         }
 
         internal bool IsValid => _text != null;
@@ -285,6 +290,11 @@ namespace EffectPreview.Ui
                 _shadowImage.pixelsPerUnitMultiplier = Mathf.Max(0.01f, ShadowBorder / (ShadowHeight * shadowScale * 0.5f));
                 _shadow.position = _text.rectTransform.position;
             }
+        }
+
+        internal void ApplyCountdown(RectTransform target, string content, Color foreground, Color outlineColor, float extraOffset = 0f)
+        {
+            Apply(target, content, foreground, outlineColor, Plugin.Instance.Cfg.AfflictionCountdownFontScale.Value * CountdownScale, CountdownVerticalOffset + extraOffset, bottomAnchored: true, minBoxWidth: CountdownMinBoxWidth);
         }
 
         internal void Hide()

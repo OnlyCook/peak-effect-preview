@@ -1,7 +1,8 @@
 ## 1.2.0
 
-- Added new `Bar-Display/show-affliction-countdowns` setting (off by default) which shows a timer label below the status effect showing how long it'll take before it starts to decay and how long until it finished decaying.
-- Added Energy Drink's speed boost to `Bar-Display/show-special-status-counts` which visualizes it's remaining duration.
+- Added new `Bar-Display/show-affliction-countdowns` setting (off by default) which shows a timer label below the status effect showing how long it'll take before it starts to decay and how long until it finishes decaying.
+- Added Energy Drink's *Speed Boost* to `Bar-Display/show-special-status-duration` which visualizes it's remaining duration with a custom bar.
+- Updated *Infinite Stamina* remaining duration label placement.
 - Fixed Invincibility remaining duration border being misplaced and not scaled correctly for displays with non-16:9 aspect ratios.
 
 ## 1.1.0
