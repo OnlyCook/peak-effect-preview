@@ -72,9 +72,12 @@ namespace EffectPreview.Ui
             }
 
             _borderRtf.GetWorldCorners(_corners);
-            float width = _corners[2].x - _corners[0].x;
-            float height = _corners[1].y - _corners[0].y;
             Vector3 leftCenterWorld = new Vector3(_corners[0].x, (_corners[0].y + _corners[1].y) * 0.5f, _corners[0].z);
+            Vector3 bottomLeft = _originalParent.InverseTransformPoint(_corners[0]);
+            Vector3 topRight = _originalParent.InverseTransformPoint(_corners[2]);
+            float width = topRight.x - bottomLeft.x;
+            float height = topRight.y - bottomLeft.y;
+            Vector2 ownSize = _borderRtf.rect.size;
 
             GameObject wrapperGo = new GameObject(_borderRtf.name + " (EffectPreview Reveal Mask)", typeof(RectTransform));
             _wrapperRtf = (RectTransform)wrapperGo.transform;
@@ -93,7 +96,7 @@ namespace EffectPreview.Ui
             _borderRtf.anchorMin = (_borderRtf.anchorMax = new Vector2(0f, 0.5f));
             _borderRtf.pivot = new Vector2(0f, 0.5f);
             _borderRtf.anchoredPosition = Vector2.zero;
-            _borderRtf.sizeDelta = new Vector2(width, height);
+            _borderRtf.sizeDelta = ownSize;
 
             _wrapped = true;
         }
