@@ -43,6 +43,9 @@ namespace EffectPreview.Ui
         private InfiniteStaminaDurationVisual _infiniteStaminaDurationVisual;
         private BarLabel _invincibilityCountLabel;
         private SpeedBoostDurationLine _speedBoostLine;
+        private SpeedBoostDurationLine _lowGravityLine;
+        private const float LowGravityLineWidth = 120f;
+        private const float LowGravityLineBelowReticle = 140f;
         private RectTransform _shieldIconRect;
         private Color _staminaVanillaForeground;
         private Color _staminaVanillaOutline;
@@ -78,6 +81,7 @@ namespace EffectPreview.Ui
                 _infiniteStaminaDurationVisual = null;
                 _invincibilityCountLabel = null;
                 _speedBoostLine = null;
+                _lowGravityLine = null;
                 _shieldIconRect = null;
                 _built = false;
             }
@@ -147,6 +151,10 @@ namespace EffectPreview.Ui
                 return true;
             }
             if (_speedBoostLine != null && !_speedBoostLine.IsValid)
+            {
+                return true;
+            }
+            if (_lowGravityLine != null && !_lowGravityLine.IsValid)
             {
                 return true;
             }
@@ -252,6 +260,12 @@ namespace EffectPreview.Ui
                 _speedBoostLine = SpeedBoostDurationLine.Create(_bar.staminaBarOutline, _bar.extraBarOutline, FindUnmaskedAncestorParent(_bar.extraBar != null ? _bar.extraBar.transform : _bar.extraBarOutline), font, fontMaterial);
             }
 
+            RectTransform reticle = GUIManager.instance.reticleDefault != null ? GUIManager.instance.reticleDefault.GetComponent<RectTransform>() : null;
+            if (_lowGravityLine == null && reticle != null && _bar.extraBarOutline != null)
+            {
+                _lowGravityLine = SpeedBoostDurationLine.Create(reticle, _bar.extraBarOutline, FindUnmaskedAncestorParent(_bar.extraBar != null ? _bar.extraBar.transform : _bar.extraBarOutline), font, fontMaterial, backdrop: true);
+            }
+
             // _invincibilityCountLabel itself isn't created here (see note on its lazy creation in Refresh())
             _shieldIconRect = shieldRtf;
 
@@ -275,7 +289,7 @@ namespace EffectPreview.Ui
             // (native code reads through the same property), so any ghost overlay math driven off localCharacter
             // fights the real bar instead of tracking whoever it's actually showing
             Character character = Character.observedCharacter;
-            if (character == null)
+            if (character == null || Plugin.Instance.ModToggledOff)
             {
                 HideAll();
                 return;
@@ -563,6 +577,23 @@ namespace EffectPreview.Ui
             // else: freeze
 
             RefreshSpeedBoost(character, showSpecialCounts, showSpecialDurationVisual);
+            RefreshLowGravity(character, showSpecialCounts, showSpecialDurationVisual);
+        }
+
+        private void RefreshLowGravity(Character character, bool showCounts, bool showVisual)
+        {
+            if (_lowGravityLine == null)
+            {
+                return;
+            }
+
+            if ((!showCounts && !showVisual) || !Preview.SpecialStatusDuration.TryGetLowGravityRemaining(character, out float remaining, out float fraction))
+            {
+                _lowGravityLine.Hide();
+                return;
+            }
+
+            _lowGravityLine.ApplyBelowWidthSource(LowGravityLineWidth, LowGravityLineBelowReticle, fraction, Mathf.CeilToInt(remaining) + "s", showVisual, showCounts, Plugin.Instance.Cfg.BarCountFontScale.Value);
         }
 
         private void RefreshSpeedBoost(Character character, bool showCounts, bool showVisual)
@@ -669,6 +700,7 @@ namespace EffectPreview.Ui
             _infiniteStaminaDurationVisual?.Hide();
             _invincibilityCountLabel?.Hide();
             _speedBoostLine?.Hide();
+            _lowGravityLine?.Hide();
             _speedBoostGraceTracker.Reset();
             _infiniteStaminaGraceTracker.Reset();
             _infiniteStaminaUnifiedTimer.Reset();

@@ -9,7 +9,7 @@ namespace EffectPreview.Patches
     {
         private static bool Prefix(StaminaBar __instance)
         {
-            if (!Plugin.Instance.Cfg.ShowSpecialStatusDurationVisual.Value)
+            if (!Plugin.Instance.Cfg.ShowSpecialStatusDurationVisual.Value || Plugin.Instance.ModToggledOff)
             {
                 return true;
             }

@@ -13,6 +13,10 @@ namespace EffectPreview
 
         internal BepInEx.Logging.ManualLogSource Log => Logger;
 
+        internal bool PreviewToggledOff { get; private set; }
+
+        internal bool ModToggledOff => PreviewToggledOff && Cfg.ToggleMode.Value == InGameToggleMode.EntireMod;
+
         private Harmony _harmony;
 
         private void Awake()
@@ -29,6 +33,18 @@ namespace EffectPreview
             go.AddComponent<Ui.GhostJetpackFuelGauge>();
 
             Logger.LogInfo($"{PluginInfo.Name} {PluginInfo.Version} loaded.");
+        }
+
+        internal void PollInGameToggle()
+        {
+            if (Cfg.ToggleMode.Value == InGameToggleMode.Disabled)
+            {
+                PreviewToggledOff = false;
+            }
+            else if (Input.GetKeyDown(Cfg.ToggleKey.Value))
+            {
+                PreviewToggledOff = !PreviewToggledOff;
+            }
         }
     }
 }

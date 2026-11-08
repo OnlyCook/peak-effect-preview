@@ -13,11 +13,16 @@ namespace EffectPreview.Ui
         private const float FillAlpha = 0.9f;
         private const float LabelGap = 10f;
         private const float LabelWidth = 56f;
+        private const float BackdropSpread = 22f;
+        private const float BackdropAlpha = 0.55f;
+        private const int BackdropTexSize = 64;
+        private const int BackdropBorder = 31;
 
         private const int FillSpriteSize = 12;
         private const float FillCornerRadius = 4f;
 
         private static Sprite _fillSprite;
+        private static Sprite _backdropSprite;
 
         private static readonly Color LabelOutline = new Color(0.2f, 0.2f, 0.2f, 1f);
 
@@ -25,12 +30,14 @@ namespace EffectPreview.Ui
         private readonly RectTransform _slotSource;
         private readonly RectTransform _line;
         private readonly RectTransform _fill;
+        private readonly RectTransform _backdrop;
         private readonly RectTransform _labelAnchor;
         private readonly BarLabel _label;
         private readonly Vector3[] _corners = new Vector3[4];
 
-        private SpeedBoostDurationLine(RectTransform widthSource, RectTransform slotSource, RectTransform line, RectTransform fill, RectTransform labelAnchor, BarLabel label)
+        private SpeedBoostDurationLine(RectTransform widthSource, RectTransform slotSource, RectTransform line, RectTransform fill, RectTransform backdrop, RectTransform labelAnchor, BarLabel label)
         {
+            _backdrop = backdrop;
             _fill = fill;
             _widthSource = widthSource;
             _slotSource = slotSource;
@@ -41,7 +48,7 @@ namespace EffectPreview.Ui
 
         internal bool IsValid => _widthSource != null && _slotSource != null && _line != null && _fill != null && _labelAnchor != null && _label != null && _label.IsValid;
 
-        internal static SpeedBoostDurationLine Create(RectTransform widthSource, RectTransform bonusOutline, Transform parent, TMPro.TMP_FontAsset font, Material fontMaterial)
+        internal static SpeedBoostDurationLine Create(RectTransform widthSource, RectTransform bonusOutline, Transform parent, TMPro.TMP_FontAsset font, Material fontMaterial, bool backdrop = false)
         {
             if (widthSource == null || bonusOutline == null || parent == null || font == null)
             {
@@ -94,7 +101,53 @@ namespace EffectPreview.Ui
             anchorGo.SetActive(false);
 
             BarLabel label = BarLabel.Create(parent, font, fontMaterial);
-            return new SpeedBoostDurationLine(widthSource, bonusOutline, line, fill, anchor, label);
+            return new SpeedBoostDurationLine(widthSource, bonusOutline, line, fill, backdrop ? CreateBackdrop(parent) : null, anchor, label);
+        }
+
+        private static RectTransform CreateBackdrop(Transform parent)
+        {
+            GameObject go = new GameObject("EffectPreview Duration Line Backdrop", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(LayoutElement));
+            RectTransform rtf = (RectTransform)go.transform;
+            rtf.SetParent(parent, worldPositionStays: false);
+            rtf.anchorMin = (rtf.anchorMax = new Vector2(0.5f, 0.5f));
+            rtf.pivot = new Vector2(0f, 1f);
+            go.GetComponent<LayoutElement>().ignoreLayout = true;
+            Image image = go.GetComponent<Image>();
+            image.sprite = GetBackdropSprite();
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = BackdropBorder / (LineHeight * 0.5f + BackdropSpread);
+            image.color = new Color(1f, 1f, 1f, BackdropAlpha);
+            image.raycastTarget = false;
+            Common.GhostOwnershipTag.Attach(go);
+            go.SetActive(false);
+            return rtf;
+        }
+
+        // radial falloff with no solid plateau, sliced into a capsule so no straight edge or corner reads as a rectangle
+        private static Sprite GetBackdropSprite()
+        {
+            if (_backdropSprite != null)
+            {
+                return _backdropSprite;
+            }
+
+            Texture2D tex = new Texture2D(BackdropTexSize, BackdropTexSize, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            float half = BackdropTexSize * 0.5f;
+            for (int y = 0; y < BackdropTexSize; y++)
+            {
+                for (int x = 0; x < BackdropTexSize; x++)
+                {
+                    float dx = x + 0.5f - half;
+                    float dy = y + 0.5f - half;
+                    float alpha = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy) / half));
+                    tex.SetPixel(x, y, new Color(0f, 0f, 0f, alpha));
+                }
+            }
+            tex.Apply();
+            _backdropSprite = Sprite.Create(tex, new Rect(0, 0, BackdropTexSize, BackdropTexSize), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(BackdropBorder, BackdropBorder, BackdropBorder, BackdropBorder));
+            return _backdropSprite;
         }
 
         private static Sprite GetFillSprite()
@@ -136,13 +189,34 @@ namespace EffectPreview.Ui
             _widthSource.GetWorldCorners(_corners);
             Vector3 topLeft = parent.InverseTransformPoint(_corners[1]);
             Vector3 topRight = parent.InverseTransformPoint(_corners[2]);
-            float width = topRight.x - topLeft.x;
+            Layout(topLeft.x, top, topRight.x - topLeft.x, remainingFraction, labelText, showLine, showLabel, fontScale);
+        }
 
+        internal void ApplyBelowWidthSource(float width, float distanceBelow, float remainingFraction, string labelText, bool showLine, bool showLabel, float fontScale)
+        {
+            if (_widthSource == null || _line == null)
+            {
+                return;
+            }
+
+            Vector3 center = _line.parent.InverseTransformPoint(_widthSource.position);
+            Layout(center.x - width * 0.5f, center.y - distanceBelow, width, remainingFraction, labelText, showLine, showLabel, fontScale);
+        }
+
+        private void Layout(float left, float top, float width, float remainingFraction, string labelText, bool showLine, bool showLabel, float fontScale)
+        {
             bool lineVisible = showLine && width > 0.5f;
             _line.gameObject.SetActive(lineVisible);
+            _backdrop?.gameObject.SetActive(lineVisible);
             if (lineVisible)
             {
-                _line.localPosition = new Vector3(topLeft.x, top, 0f);
+                if (_backdrop != null)
+                {
+                    _backdrop.localPosition = new Vector3(left - BackdropSpread, top + BackdropSpread, 0f);
+                    _backdrop.sizeDelta = new Vector2(width + 2f * BackdropSpread, LineHeight + 2f * BackdropSpread);
+                    _backdrop.SetAsLastSibling();
+                }
+                _line.localPosition = new Vector3(left, top, 0f);
                 _line.sizeDelta = new Vector2(width, LineHeight);
                 _fill.anchoredPosition = new Vector2(FillInsetX, 0f);
                 _fill.sizeDelta = new Vector2(Mathf.Max(0f, (width - 2f * FillInsetX) * Mathf.Clamp01(remainingFraction)), -2f * FillInsetY);
@@ -152,8 +226,12 @@ namespace EffectPreview.Ui
             if (showLabel && !string.IsNullOrEmpty(labelText))
             {
                 _labelAnchor.gameObject.SetActive(true);
-                _labelAnchor.localPosition = new Vector3(topRight.x + LabelGap, top, 0f);
+                _labelAnchor.localPosition = new Vector3(left + width + LabelGap, top, 0f);
                 _label.Apply(_labelAnchor, labelText, Color.white, LabelOutline, fontScale);
+                if (_backdrop != null)
+                {
+                    _label.BringToFront();
+                }
             }
             else
             {
@@ -167,6 +245,10 @@ namespace EffectPreview.Ui
             if (_line != null)
             {
                 _line.gameObject.SetActive(false);
+            }
+            if (_backdrop != null)
+            {
+                _backdrop.gameObject.SetActive(false);
             }
             if (_labelAnchor != null)
             {

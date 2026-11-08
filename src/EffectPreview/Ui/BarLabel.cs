@@ -106,6 +106,8 @@ namespace EffectPreview.Ui
         internal bool IsValid => _text != null;
 
         // font/fontMaterial: the game's own TMP font asset/material (e.g. StaminaBar.moraleBoostText's), so this reads as native UI rather than a mod font
+        internal void BringToFront() => _text.transform.SetAsLastSibling();
+
         internal static BarLabel Create(Transform parent, TMP_FontAsset font, Material fontMaterial, bool shadow = false)
         {
             RectTransform shadowRtf = null;

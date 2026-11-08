@@ -11,6 +11,11 @@ namespace EffectPreview.Preview
             return TryGetRemaining(character, Affliction.AfflictionType.Invincibility, out remainingSeconds, out remainingFraction);
         }
 
+        internal static bool TryGetLowGravityRemaining(Character character, out float remainingSeconds, out float remainingFraction)
+        {
+            return TryGetRemaining(character, Affliction.AfflictionType.LowGravity, out remainingSeconds, out remainingFraction);
+        }
+
         // Scout's Ambition's aura
         // see Preview/InfiniteStaminaUnifiedTimer
         internal static bool TryGetRadiateInfiniteStamAffliction(Character character, out Affliction_RadiateInfiniteStam affliction)
