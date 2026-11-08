@@ -35,7 +35,7 @@ Config file: `BepInEx/config/OnlyCook.EffectPreview.cfg`.
 
 <summary><b>View config information</b></summary>
 
-- **General**: master preview switch.
+- **General**: master preview switch, in-game toggle mode and in-game toggle key.
 - **Interactions**: world-object previews (unlit campfires, ancient luggage), player-entity previews (Thorn/Arrow stuck on you, cannibalism), item pickup previews, sticky Thorn/Arrow removal.
 - **Item Previews**: weight preview, timed-usage preview (status effects fully/partially removed by item duration), jetpack fuel gauge preview, cooking preview toggle and its key (default **`C`**).
 - **Bar Display**: waste indicator, removal blink, ghost/vanilla bar count numbers, plain (untinted) bar count style and bar count font scale, affliction countdowns (time until an affliction starts and finishes decaying) and their font scale, Invincibility/Infinite Stamina/Speed Boost remaining duration counts and bar visualization.
