@@ -136,13 +136,27 @@ namespace EffectPreview.Ui
             _widthSource.GetWorldCorners(_corners);
             Vector3 topLeft = parent.InverseTransformPoint(_corners[1]);
             Vector3 topRight = parent.InverseTransformPoint(_corners[2]);
-            float width = topRight.x - topLeft.x;
+            Layout(topLeft.x, top, topRight.x - topLeft.x, remainingFraction, labelText, showLine, showLabel, fontScale);
+        }
 
+        internal void ApplyBelowWidthSource(float width, float distanceBelow, float remainingFraction, string labelText, bool showLine, bool showLabel, float fontScale)
+        {
+            if (_widthSource == null || _line == null)
+            {
+                return;
+            }
+
+            Vector3 center = _line.parent.InverseTransformPoint(_widthSource.position);
+            Layout(center.x - width * 0.5f, center.y - distanceBelow, width, remainingFraction, labelText, showLine, showLabel, fontScale);
+        }
+
+        private void Layout(float left, float top, float width, float remainingFraction, string labelText, bool showLine, bool showLabel, float fontScale)
+        {
             bool lineVisible = showLine && width > 0.5f;
             _line.gameObject.SetActive(lineVisible);
             if (lineVisible)
             {
-                _line.localPosition = new Vector3(topLeft.x, top, 0f);
+                _line.localPosition = new Vector3(left, top, 0f);
                 _line.sizeDelta = new Vector2(width, LineHeight);
                 _fill.anchoredPosition = new Vector2(FillInsetX, 0f);
                 _fill.sizeDelta = new Vector2(Mathf.Max(0f, (width - 2f * FillInsetX) * Mathf.Clamp01(remainingFraction)), -2f * FillInsetY);
@@ -152,7 +166,7 @@ namespace EffectPreview.Ui
             if (showLabel && !string.IsNullOrEmpty(labelText))
             {
                 _labelAnchor.gameObject.SetActive(true);
-                _labelAnchor.localPosition = new Vector3(topRight.x + LabelGap, top, 0f);
+                _labelAnchor.localPosition = new Vector3(left + width + LabelGap, top, 0f);
                 _label.Apply(_labelAnchor, labelText, Color.white, LabelOutline, fontScale);
             }
             else
