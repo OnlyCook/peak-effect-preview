@@ -41,7 +41,7 @@ namespace EffectPreview
                                         "Show a ghost preview of status effect changes on both stamina bars while holding an item that would cause them.");
             ToggleMode = config.Bind("General", "in-game-toggle-mode", InGameToggleMode.Disabled,
                                      "What the in-game toggle key does. Disabled: nothing. PreviewOnly: toggles the ghost previews, keeping the bar counts, affliction countdowns and special status duration displays. EntireMod: toggles everything this mod does. Always starts toggled on when launching the game.");
-            ToggleKey = config.Bind("General", "in-game-toggle-key", KeyCode.F8,
+            ToggleKey = config.Bind("General", "in-game-toggle-key", KeyCode.P,
                                     "Key to press to toggle the mod in-game, see in-game-toggle-mode.");
 
             EnableWorldObjectPreviews = config.Bind("Interactions", "enable-world-object-previews", true,
