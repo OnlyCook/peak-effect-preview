@@ -275,7 +275,7 @@ namespace EffectPreview.Ui
             // (native code reads through the same property), so any ghost overlay math driven off localCharacter
             // fights the real bar instead of tracking whoever it's actually showing
             Character character = Character.observedCharacter;
-            if (character == null)
+            if (character == null || Plugin.Instance.ModToggledOff)
             {
                 HideAll();
                 return;

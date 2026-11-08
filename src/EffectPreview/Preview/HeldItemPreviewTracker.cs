@@ -29,8 +29,10 @@ namespace EffectPreview.Preview
 
         private void Update()
         {
+            Plugin.Instance.PollInGameToggle();
+
             // spectating someone else isn't you playing, so nothing of yours should be previewed
-            if (!Plugin.Instance.Cfg.EnablePreview.Value || MainCameraMovement.IsSpectating)
+            if (!Plugin.Instance.Cfg.EnablePreview.Value || Plugin.Instance.PreviewToggledOff || MainCameraMovement.IsSpectating)
             {
                 // clears any preview left over from before the setting was disabled, so vanilla-only bar counts
                 // aren't drawn against a stale ghost delta

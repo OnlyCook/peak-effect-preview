@@ -8,7 +8,7 @@ namespace EffectPreview.Patches
     {
         private static void Postfix(Interaction __instance, ref IInteractible interactableResult)
         {
-            if (!Plugin.Instance.Cfg.StickyThornRemoval.Value)
+            if (!Plugin.Instance.Cfg.StickyThornRemoval.Value || Plugin.Instance.ModToggledOff)
             {
                 return;
             }

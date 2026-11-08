@@ -14,7 +14,7 @@ namespace EffectPreview.Ui
 
         private void LateUpdate()
         {
-            if (!Plugin.Instance.Cfg.EnableJetpackPreview.Value || !TryGetWheel())
+            if (!Plugin.Instance.Cfg.EnableJetpackPreview.Value || Plugin.Instance.PreviewToggledOff || !TryGetWheel())
             {
                 Hide();
                 return;

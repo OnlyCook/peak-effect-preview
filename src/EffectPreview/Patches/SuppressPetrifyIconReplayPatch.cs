@@ -16,6 +16,11 @@ namespace EffectPreview.Patches
 
         private static bool Prefix(BarAffliction __instance)
         {
+            if (Plugin.Instance.ModToggledOff)
+            {
+                return true;
+            }
+
             float now = Time.unscaledTime;
             if (LastEnableTime.TryGetValue(__instance, out float last) && now - last < DebounceSeconds)
             {

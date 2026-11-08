@@ -3,9 +3,18 @@ using UnityEngine;
 
 namespace EffectPreview
 {
+    internal enum InGameToggleMode
+    {
+        Disabled,
+        PreviewOnly,
+        EntireMod
+    }
+
     internal class PluginConfig
     {
         internal ConfigEntry<bool> EnablePreview;
+        internal ConfigEntry<InGameToggleMode> ToggleMode;
+        internal ConfigEntry<KeyCode> ToggleKey;
         internal ConfigEntry<bool> EnableWasteIndicator;
         internal ConfigEntry<bool> EnableRemovalBlink;
         internal ConfigEntry<bool> ShowGhostBarCounts;
@@ -30,6 +39,10 @@ namespace EffectPreview
         {
             EnablePreview = config.Bind("General", "enable-preview", true,
                                         "Show a ghost preview of status effect changes on both stamina bars while holding an item that would cause them.");
+            ToggleMode = config.Bind("General", "in-game-toggle-mode", InGameToggleMode.Disabled,
+                                     "What the in-game toggle key does. Disabled: nothing. PreviewOnly: toggles the ghost previews, keeping the bar counts, affliction countdowns and special status duration displays. EntireMod: toggles everything this mod does. Always starts toggled on when launching the game.");
+            ToggleKey = config.Bind("General", "in-game-toggle-key", KeyCode.F8,
+                                    "Key to press to toggle the mod in-game, see in-game-toggle-mode.");
 
             EnableWorldObjectPreviews = config.Bind("Interactions", "enable-world-object-previews", true,
                                                     "Show a preview when empty-handed and able to interact with a world object that changes your status effects (unlit campfires, ancient luggage).");
