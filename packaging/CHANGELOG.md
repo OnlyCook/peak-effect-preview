@@ -1,3 +1,10 @@
+## 1.3.0
+
+- The *Low Gravity* afflication now also gets a custom duration bar for as long as it's active.
+- Added new `General/in-game-toggle-mode` and `General/in-game-toggle-key` options to be able to toggle the mod in-game.
+- Fixed the end of the bonus stamina bar jittering when applying a real bonus stamina update.
+- Fixed `NullReferenceException` as the mod tried to find the camera before it even existed.
+
 ## 1.2.0
 
 - Added new `Bar-Display/show-affliction-countdowns` setting (off by default) which shows a timer label below the status effect indicating how long it'll take before it starts to decay and how long until it finishes decaying entirely.
