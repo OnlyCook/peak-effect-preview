@@ -263,7 +263,7 @@ namespace EffectPreview.Ui
             RectTransform reticle = GUIManager.instance.reticleDefault != null ? GUIManager.instance.reticleDefault.GetComponent<RectTransform>() : null;
             if (_lowGravityLine == null && reticle != null && _bar.extraBarOutline != null)
             {
-                _lowGravityLine = SpeedBoostDurationLine.Create(reticle, _bar.extraBarOutline, FindUnmaskedAncestorParent(_bar.extraBar != null ? _bar.extraBar.transform : _bar.extraBarOutline), font, fontMaterial);
+                _lowGravityLine = SpeedBoostDurationLine.Create(reticle, _bar.extraBarOutline, FindUnmaskedAncestorParent(_bar.extraBar != null ? _bar.extraBar.transform : _bar.extraBarOutline), font, fontMaterial, backdrop: true);
             }
 
             // _invincibilityCountLabel itself isn't created here (see note on its lazy creation in Refresh())

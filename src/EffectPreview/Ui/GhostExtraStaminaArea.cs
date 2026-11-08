@@ -22,6 +22,7 @@ namespace EffectPreview.Ui
 
         private const float ShrinkLerpStep100Fps = 0.14f;
         private const float GrowLerpStep100Fps = 0.6f;
+        private const float NativeFillLerpRate = 10f;
 
         // the tween never quite lands on its target mid-flight (eased curve, or retargeted before completing)
         // so the label snaps to the exact target based on how close the animation is now (mirrors GhostPetrifyArea's DisplayedDeltaSnapEpsilon)
@@ -182,8 +183,8 @@ namespace EffectPreview.Ui
             }
             else if (_catchUpWidthControl)
             {
-                float lerpStep = Common.AnimUtil.LerpStep(ShrinkLerpStep100Fps);
-                _catchUpDisplayedWidth = Mathf.Lerp(_catchUpDisplayedWidth, realWidth, lerpStep);
+                // same rate as StaminaBar's private cachedExtraStam, any other speed snaps when native takes back over
+                _catchUpDisplayedWidth = Mathf.Lerp(_catchUpDisplayedWidth, realWidth, Time.deltaTime * NativeFillLerpRate);
                 _extraBarStamina.sizeDelta = new Vector2(_catchUpDisplayedWidth, _extraBarStamina.sizeDelta.y);
 
                 if (Mathf.Abs(_catchUpDisplayedWidth - realWidth) < 0.5f)
