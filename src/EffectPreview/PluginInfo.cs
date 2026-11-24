@@ -4,6 +4,6 @@ namespace EffectPreview
     {
         public const string Guid = "OnlyCook.EffectPreview";
         public const string Name = "Effect Preview";
-        public const string Version = "1.3.0";
+        public const string Version = "1.4.0";
     }
 }
