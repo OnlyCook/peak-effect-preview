@@ -57,8 +57,13 @@ namespace EffectPreview.Ui
         private readonly RectTransform _shadow;
         private readonly UnityEngine.UI.Image _shadowImage;
 
-        private BarLabel(TextMeshProUGUI text, RectTransform shadow, UnityEngine.UI.Image shadowImage)
+        private readonly TMP_FontAsset _font;
+        private readonly Material _fontMaterial;
+
+        private BarLabel(TextMeshProUGUI text, RectTransform shadow, UnityEngine.UI.Image shadowImage, TMP_FontAsset font, Material fontMaterial)
         {
+            _font = font;
+            _fontMaterial = fontMaterial;
             _shadowImage = shadowImage;
             _text = text;
             _shadow = shadow;
@@ -154,16 +159,152 @@ namespace EffectPreview.Ui
 
             Common.GhostOwnershipTag.Attach(go);
             go.SetActive(false);
-            return new BarLabel(text, shadowRtf, shadowImage);
+            return new BarLabel(text, shadowRtf, shadowImage, font, fontMaterial);
         }
 
-        // truncates to the same 0-100 "count" scale the mod's status fractions represent (0.10 -> "10")
-        // epsilon guards against native petrifyAmount landing just under a whole number (e.g. 9.999999 from float accumulation), which would otherwise floor to one less than the real value
-        private const float FormatCountEpsilon = 1e-4f;
+        // the decimal is its own smaller text on the integer's baseline, so it can carry a thicker outline without touching the integer's
+        private const float DecimalScale = 0.66f;
+        private const float DecimalOutlineWidth = OutlineWidth / DecimalScale;
 
-        internal static string FormatCount(float fraction)
+        // grows/shrinks the decimal instead of popping it in and out when the room for it changes
+        private const float DecimalGrowPerSecond = 6f;
+
+        // the integer+decimal group has to stay at least this far (text-local units) inside the bar's own edges
+        private const float DecimalFitMargin = 1f;
+
+        private const float DecimalMeasureFontSize = 100f;
+
+        private bool _sourceIsTransition;
+        private int _sourceBefore = int.MinValue;
+        private int _sourceAfter = int.MinValue;
+        private string _sourceInteger;
+        private int _sourceBeforeLength;
+
+        private float _decimalShown;
+        private string _spacedText;
+        private int _spacedPercent = -1;
+        private string _layoutText;
+        private float _layoutBoxWidth = -1f;
+        private float _layoutFontSize = -1f;
+
+        private float _lastTargetWidth = -1f;
+
+        private readonly TextMeshProUGUI[] _decimals = new TextMeshProUGUI[2];
+        private readonly int[] _decimalDigits = { -1, -1 };
+        private readonly float[] _digitEmWidths = new float[10];
+
+        private string _measuredContent;
+        private float _measuredPreferred;
+
+        // tenths of the same 0-100 "count" scale the mod's status fractions represent (0.105 -> 105 -> "10.5")
+        private static int ToTenths(float fraction)
         {
-            return Mathf.FloorToInt(fraction * 100f + FormatCountEpsilon).ToString();
+            return Mathf.Max(0, Mathf.RoundToInt(fraction * 1000f));
+        }
+
+        private static string IntegerText(int tenths)
+        {
+            return (tenths / 10).ToString();
+        }
+
+        private void SetSource(bool transition, int before, int after)
+        {
+            if (transition == _sourceIsTransition && before == _sourceBefore && after == _sourceAfter && _sourceInteger != null)
+            {
+                return;
+            }
+            _sourceIsTransition = transition;
+            _sourceBefore = before;
+            _sourceAfter = after;
+            string beforeText = IntegerText(before);
+            _sourceBeforeLength = beforeText.Length;
+            _sourceInteger = transition ? beforeText + " " + ArrowGlyph + " " + IntegerText(after) : beforeText;
+            _spacedPercent = -1;
+        }
+
+        private int DecimalCount => _sourceIsTransition ? 2 : 1;
+
+        private int DecimalDigit(int index) => (index == 0 ? _sourceBefore : _sourceAfter) % 10;
+
+        // width of ".d" in ems of its own font size, measured once per digit
+        private float DigitEmWidth(int digit)
+        {
+            if (_digitEmWidths[digit] <= 0f)
+            {
+                TextMeshProUGUI measurer = GetDecimal(0);
+                measurer.fontSize = DecimalMeasureFontSize;
+                _digitEmWidths[digit] = Mathf.Max(0.01f, measurer.GetPreferredValues("." + digit).x / DecimalMeasureFontSize);
+                _decimalDigits[0] = -1;
+            }
+            return _digitEmWidths[digit];
+        }
+
+        // em widths of the gaps left after each integer, relative to the integer's own font size
+        private float GapEm(int index, float shown)
+        {
+            return DigitEmWidth(DecimalDigit(index)) * DecimalScale * shown;
+        }
+
+        private static string Space(float em)
+        {
+            return "<space=" + em.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture) + "em>";
+        }
+
+        private string SpacedText(int percent)
+        {
+            if (percent == _spacedPercent && _spacedText != null)
+            {
+                return _spacedText;
+            }
+            _spacedPercent = percent;
+            float shown = percent / 100f;
+            string beforeText = IntegerText(_sourceBefore) + Space(GapEm(0, shown));
+            _spacedText = _sourceIsTransition ? beforeText + " " + ArrowGlyph + " " + IntegerText(_sourceAfter) + Space(GapEm(1, shown)) : beforeText;
+            return _spacedText;
+        }
+
+        private TextMeshProUGUI GetDecimal(int index)
+        {
+            if (_decimals[index] != null)
+            {
+                return _decimals[index];
+            }
+            GameObject go = new GameObject("EffectPreview BarLabelDecimal", typeof(RectTransform));
+            RectTransform rtf = (RectTransform)go.transform;
+            rtf.SetParent(_text.transform, worldPositionStays: false);
+            rtf.anchorMin = rtf.anchorMax = new Vector2(0.5f, 0.5f);
+            rtf.pivot = new Vector2(0f, 0.5f);
+            rtf.sizeDelta = Vector2.zero;
+            TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
+            if (_font != null)
+            {
+                text.font = _font;
+            }
+            if (_fontMaterial != null)
+            {
+                text.fontSharedMaterial = _fontMaterial;
+            }
+            text.alignment = TextAlignmentOptions.BaselineLeft;
+            text.enableWordWrapping = false;
+            text.overflowMode = TextOverflowModes.Overflow;
+            text.raycastTarget = false;
+            text.enableAutoSizing = false;
+            text.outlineWidth = DecimalOutlineWidth;
+            Common.GhostOwnershipTag.Attach(go);
+            go.SetActive(false);
+            _decimals[index] = text;
+            return text;
+        }
+
+        private void HideDecimals()
+        {
+            for (int i = 0; i < _decimals.Length; i++)
+            {
+                if (_decimals[i] != null && _decimals[i].gameObject.activeSelf)
+                {
+                    _decimals[i].gameObject.SetActive(false);
+                }
+            }
         }
 
         // light hue-tinted text with a dark hue-tinted outline, outline pushed darker until the ratio holds so it reads over any stripe or ghost behind it
@@ -220,14 +361,14 @@ namespace EffectPreview.Ui
                 return;
             }
 
-            string beforeText = FormatCount(beforeFraction);
             if (afterFraction >= beforeFraction - 0.0005f)
             {
-                Apply(target, beforeText, foreground, outlineColor, scaleMultiplier);
+                SetSource(false, ToTenths(beforeFraction), 0);
+                Apply(target, _sourceInteger, foreground, outlineColor, scaleMultiplier, decimalSource: true, settledWorldWidth: fitWidthOverride);
                 return;
             }
 
-            string fullText = beforeText + " " + ArrowGlyph + " " + FormatCount(afterFraction);
+            SetSource(true, ToTenths(beforeFraction), ToTenths(afterFraction));
 
             float width;
             if (fitWidthOverride >= 0f)
@@ -239,12 +380,29 @@ namespace EffectPreview.Ui
                 target.GetWorldCorners(_cornerBuffer);
                 width = _cornerBuffer[2].x - _cornerBuffer[0].x;
             }
-            float requiredWidth = fullText.Length * EstimatedCharWidthFactor * MinReadableFontSizeForFit;
+            float requiredWidth = _sourceInteger.Length * EstimatedCharWidthFactor * MinReadableFontSizeForFit;
 
-            Apply(target, width >= requiredWidth ? fullText : beforeText, foreground, outlineColor, scaleMultiplier);
+            if (width >= requiredWidth)
+            {
+                Apply(target, _sourceInteger, foreground, outlineColor, scaleMultiplier, decimalSource: true, settledWorldWidth: fitWidthOverride);
+            }
+            else
+            {
+                SetSource(false, ToTenths(beforeFraction), 0);
+                Apply(target, _sourceInteger, foreground, outlineColor, scaleMultiplier, decimalSource: true, settledWorldWidth: fitWidthOverride);
+            }
         }
 
-        internal void Apply(RectTransform target, string content, Color foreground, Color outlineColor, float scaleMultiplier, float extraVerticalOffset = 0f, bool bottomAnchored = false, float minBoxWidth = 0f)
+        // settledLocalWidth: the width (target's own local units) the target bar is animating toward, so the decimal can start growing/shrinking
+        // together with it instead of only once it got there, -1 when the caller doesn't know it
+        internal void ApplyCount(RectTransform target, float fraction, Color foreground, Color outlineColor, float scaleMultiplier, float settledLocalWidth = -1f)
+        {
+            SetSource(false, ToTenths(fraction), 0);
+            Apply(target, _sourceInteger, foreground, outlineColor, scaleMultiplier, decimalSource: true,
+                  settledWorldWidth: settledLocalWidth >= 0f && target != null ? settledLocalWidth * target.lossyScale.x : -1f);
+        }
+
+        internal void Apply(RectTransform target, string content, Color foreground, Color outlineColor, float scaleMultiplier, float extraVerticalOffset = 0f, bool bottomAnchored = false, float minBoxWidth = 0f, bool decimalSource = false, string narrowContent = null, float settledWorldWidth = -1f)
         {
             if (target == null || !target.gameObject.activeSelf || string.IsNullOrEmpty(content))
             {
@@ -266,7 +424,8 @@ namespace EffectPreview.Ui
 
             _text.gameObject.SetActive(true);
             _text.transform.SetAsLastSibling();
-            _text.rectTransform.sizeDelta = new Vector2(Mathf.Max(1f, width - WidthPadding, minBoxWidth), BoxHeight);
+            float boxWidth = Mathf.Max(1f, width - WidthPadding, minBoxWidth);
+            _text.rectTransform.sizeDelta = new Vector2(boxWidth, BoxHeight);
             _text.transform.localScale = Vector3.one * Mathf.Max(0.01f, scaleMultiplier);
 
             Vector3 pos = _text.rectTransform.position;
@@ -280,9 +439,92 @@ namespace EffectPreview.Ui
                 outlineColor = PlainOutline;
             }
 
-            _text.text = content;
+            string shown = content;
+            bool measured = false;
+            float decimalShown = 0f;
+            if (decimalSource)
+            {
+                // the integer keeps exactly the size it'd get alone, the decimal only grows in if the whole group then still fits inside the bar itself
+                measured = MeasurePreferred(content);
+                float integerFont = MaxFontSize * Mathf.Min(1f, boxWidth / Mathf.Max(0.01f, _measuredPreferred));
+                bool fits = false;
+                float localPerWorld = 1f / Mathf.Max(0.0001f, _text.transform.lossyScale.x);
+                float currentRoom = width * localPerWorld - DecimalFitMargin;
+                float integerEm = _measuredPreferred / MaxFontSize;
+                float fullGapsEm = GapEm(0, 1f) + (_sourceIsTransition ? GapEm(1, 1f) : 0f);
+                float finalFont = integerFont;
+                if (Plugin.Instance.Cfg.DecimalBarCounts.Value)
+                {
+                    float settledWidth = settledWorldWidth >= 0f ? settledWorldWidth : LookaheadWidth(width);
+                    // the integer's own size once the bar has settled, same box rule as the current one
+                    finalFont = MaxFontSize * Mathf.Min(1f, Mathf.Max(1f, settledWidth - WidthPadding, minBoxWidth) / Mathf.Max(0.01f, _measuredPreferred));
+                    fits = (integerEm + fullGapsEm) * finalFont <= settledWidth * localPerWorld - 2f * DecimalFitMargin;
+                }
+                _decimalShown = Mathf.MoveTowards(_decimalShown, fits ? 1f : 0f, Time.unscaledDeltaTime * DecimalGrowPerSecond);
+                decimalShown = _decimalShown;
+                int percent = Mathf.RoundToInt(100f * decimalShown);
+                float fontSize = integerFont;
+                if (fits)
+                {
+                    // the settled "5.0" layout scaled down to the bar's current width: depends on that width alone, so it only ever grows/shrinks
+                    // with the bar, integer and decimal together, and can't overshoot its final size and snap back
+                    fontSize = finalFont * Mathf.Min(1f, currentRoom / Mathf.Max(0.01f, (integerEm + fullGapsEm) * finalFont));
+                }
+                if (percent > 0)
+                {
+                    shown = SpacedText(percent);
+                    float groupEmWidth = integerEm + GapEm(0, percent / 100f) + (_sourceIsTransition ? GapEm(1, percent / 100f) : 0f);
+                    if (!fits)
+                    {
+                        // shrinking out: stay inside the bar's current edges while the decimal leaves
+                        fontSize = Mathf.Min(fontSize, currentRoom / groupEmWidth);
+                    }
+                    boxWidth = Mathf.Max(boxWidth, groupEmWidth * fontSize + 1f);
+                    _text.rectTransform.sizeDelta = new Vector2(boxWidth, BoxHeight);
+                }
+                else
+                {
+                    decimalShown = 0f;
+                }
+                // sized directly from the measured width instead of TMP's auto-size, whose stepped search lands on slightly different sizes
+                // frame to frame while the bar resizes, visibly wobbling the number
+                if (_text.enableAutoSizing)
+                {
+                    _text.enableAutoSizing = false;
+                }
+                _text.fontSize = Mathf.Max(MinFontSize, fontSize);
+            }
+            else if (!_text.enableAutoSizing)
+            {
+                _text.enableAutoSizing = true;
+            }
+            if (!decimalSource && narrowContent != null)
+            {
+                // compared against the target's own width, not the label box, which may be wider than the bar it sits under
+                measured = MeasurePreferred(content);
+                shown = Mathf.Min(_measuredPreferred, boxWidth) <= width / Mathf.Max(0.0001f, _text.transform.lossyScale.x) ? content : narrowContent;
+            }
+
+            // GetPreferredValues overwrites TMP's internal text buffer, so the real text has to be pushed back unconditionally after measuring
+            if (measured)
+            {
+                _text.SetText(shown);
+            }
+            else
+            {
+                _text.text = shown;
+            }
             _text.color = foreground;
             _text.outlineColor = outlineColor;
+
+            if (decimalShown > 0f)
+            {
+                ApplyDecimals(shown, boxWidth, _spacedPercent / 100f, foreground, outlineColor);
+            }
+            else
+            {
+                HideDecimals();
+            }
 
             if (_shadow != null)
             {
@@ -294,15 +536,94 @@ namespace EffectPreview.Ui
             }
         }
 
-        internal void ApplyCountdown(RectTransform target, string content, Color foreground, Color outlineColor, float extraOffset = 0f)
+        // narrowContent: shorter form used instead whenever content would be wider than the target itself
+        internal void ApplyCountdown(RectTransform target, string content, Color foreground, Color outlineColor, float extraOffset = 0f, string narrowContent = null)
         {
-            Apply(target, content, foreground, outlineColor, Plugin.Instance.Cfg.AfflictionCountdownFontScale.Value * CountdownScale, CountdownVerticalOffset + extraOffset, bottomAnchored: true, minBoxWidth: CountdownMinBoxWidth);
+            Apply(target, content, foreground, outlineColor, Plugin.Instance.Cfg.AfflictionCountdownFontScale.Value * CountdownScale, CountdownVerticalOffset + extraOffset, bottomAnchored: true, minBoxWidth: CountdownMinBoxWidth, narrowContent: narrowContent);
+        }
+
+        // bars ease out a fixed share of the remaining gap per frame, so extending the last frame's resize a few frames ahead starts the decimal
+        // a bit earlier while staying short of where the bar settles at any frame rate (no overshoot, nothing to pop back), see RESEARCH.md
+        private const float DecimalLookaheadFrames = 3f;
+
+        private float LookaheadWidth(float currentWidth)
+        {
+            float delta = _lastTargetWidth >= 0f ? currentWidth - _lastTargetWidth : 0f;
+            _lastTargetWidth = currentWidth;
+            return currentWidth + delta * DecimalLookaheadFrames;
+        }
+
+        // returns true when it actually ran a measurement this call (and so clobbered TMP's text buffer)
+        private bool MeasurePreferred(string content)
+        {
+            if (content == _measuredContent)
+            {
+                return false;
+            }
+            _measuredContent = content;
+            // normalized to fontSizeMax, GetPreferredValues measures at the current fontSize once auto-size is off
+            float measureSize = _text.enableAutoSizing ? _text.fontSizeMax : _text.fontSize;
+            _measuredPreferred = _text.GetPreferredValues(content).x * MaxFontSize / Mathf.Max(0.01f, measureSize);
+            return true;
+        }
+
+        // each decimal sits in the gap after its integer, read off the integer's own laid-out glyphs so it shares its baseline
+        private void ApplyDecimals(string shown, float boxWidth, float decimalShown, Color foreground, Color outlineColor)
+        {
+            if (!ReferenceEquals(shown, _layoutText) || Mathf.Abs(boxWidth - _layoutBoxWidth) > 0.01f || !Mathf.Approximately(_text.fontSize, _layoutFontSize))
+            {
+                _layoutFontSize = _text.fontSize;
+                // an ancestor can be transiently inactive here, which ForceMeshUpdate would otherwise silently skip
+                _text.ForceMeshUpdate(ignoreActiveState: true);
+                bool laidOut = _text.textInfo.characterCount > 0;
+                _layoutText = laidOut ? shown : null;
+                _layoutBoxWidth = boxWidth;
+            }
+
+            // TMP centers on the last visible glyph, so the trailing gap (no glyph after it) is left out and has to be re-centered by hand
+            float trailingGap = GapEm(DecimalCount - 1, decimalShown) * _text.fontSize;
+            Vector3 pos = _text.rectTransform.position;
+            pos.x -= trailingGap * 0.5f * _text.transform.lossyScale.x;
+            _text.rectTransform.position = pos;
+
+            TMP_TextInfo info = _text.textInfo;
+            for (int i = 0; i < _decimals.Length; i++)
+            {
+                int charIndex = i == 0 ? _sourceBeforeLength - 1 : info.characterCount - 1;
+                if (i >= DecimalCount || charIndex < 0 || charIndex >= info.characterCount)
+                {
+                    if (_decimals[i] != null && _decimals[i].gameObject.activeSelf)
+                    {
+                        _decimals[i].gameObject.SetActive(false);
+                    }
+                    continue;
+                }
+
+                TextMeshProUGUI dec = GetDecimal(i);
+                int digit = DecimalDigit(i);
+                if (digit != _decimalDigits[i])
+                {
+                    _decimalDigits[i] = digit;
+                    dec.SetText("." + digit);
+                }
+                if (!dec.gameObject.activeSelf)
+                {
+                    dec.gameObject.SetActive(true);
+                }
+                dec.fontSize = _text.fontSize * DecimalScale * decimalShown;
+                dec.color = foreground;
+                dec.outlineColor = outlineColor;
+                TMP_CharacterInfo character = info.characterInfo[charIndex];
+                dec.rectTransform.anchoredPosition = new Vector2(character.xAdvance, character.baseLine);
+            }
         }
 
         internal void Hide()
         {
             if (_text != null)
             {
+                HideDecimals();
+                _lastTargetWidth = -1f;
                 _text.gameObject.SetActive(false);
             }
             if (_shadow != null)
