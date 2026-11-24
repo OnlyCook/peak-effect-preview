@@ -115,7 +115,7 @@ namespace EffectPreview.Ui
 
                 if (Plugin.Instance.Cfg.ShowGhostBarCounts.Value && _displayedShrinkWidth > 0.5f)
                 {
-                    _decreaseCountLabel.Apply(_decreaseGhost.Rtf, BarLabel.FormatCount(shrinkMagnitude), _ghostForeground, _ghostOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                    _decreaseCountLabel.ApplyCount(_decreaseGhost.Rtf, shrinkMagnitude, _ghostForeground, _ghostOutline, Plugin.Instance.Cfg.BarCountFontScale.Value, shrinkTargetWidth);
                 }
                 else
                 {
@@ -191,7 +191,7 @@ namespace EffectPreview.Ui
 
             if (Plugin.Instance.Cfg.ShowGhostBarCounts.Value && _displayedDelta > 0.0005f)
             {
-                _increaseCountLabel.Apply(_ghost.Rtf, BarLabel.FormatCount(_displayedDelta), _ghostForeground, _ghostOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                _increaseCountLabel.ApplyCount(_ghost.Rtf, _displayedDelta, _ghostForeground, _ghostOutline, Plugin.Instance.Cfg.BarCountFontScale.Value, Mathf.Max(0f, targetDelta * fullLocalWidth + overlap - rightPadding));
             }
             else
             {
@@ -205,7 +205,7 @@ namespace EffectPreview.Ui
         {
             if (Plugin.Instance.Cfg.ShowVanillaBarCounts.Value && currentPetrifyFraction > 0.0005f)
             {
-                _realCountLabel.Apply(_petrifyRtf, BarLabel.FormatCount(currentPetrifyFraction), _vanillaForeground, _vanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                _realCountLabel.ApplyCount(_petrifyRtf, currentPetrifyFraction, _vanillaForeground, _vanillaOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
             }
             else
             {

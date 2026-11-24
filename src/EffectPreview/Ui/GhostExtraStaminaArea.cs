@@ -232,7 +232,7 @@ namespace EffectPreview.Ui
 
             if (Plugin.Instance.Cfg.ShowGhostBarCounts.Value && _displayedDelta > 0.0005f)
             {
-                _ghostCountLabel.Apply(_fillGhost.Rtf, BarLabel.FormatCount(_displayedDelta), _ghostForeground, _ghostOutline, Plugin.Instance.Cfg.BarCountFontScale.Value);
+                _ghostCountLabel.ApplyCount(_fillGhost.Rtf, _displayedDelta, _ghostForeground, _ghostOutline, Plugin.Instance.Cfg.BarCountFontScale.Value, Mathf.Max(0f, targetDelta * fullLocalWidth + overlap - rightPadding));
             }
             else
             {

@@ -1,3 +1,12 @@
+## 1.4.0
+
+- Added new `Bar-Display/decimal-bar-counts` setting (off by default) which shows every bar count with a decimal next to it (if space allows it). Thanks to CreeperBlue22 for the suggestion!
+- Added new `Bar-Display/show-hunger-countdown` setting (off by default) which shows a timer label below the hunger bar indicating how long until hunger grows next.
+- Added new `Item-Previews/auto-cooking-preview` setting (off by default) to preview a held item's next cook stage without having to hold the cooking preview key.
+- Added new `Item-Previews/cooking-preview-at-unlit-fires` setting (**on** by default) which also allows the cooking preview while looking at an unlit campfire or portable stove.
+- Added support for modded items that give vanilla status effects on use (e.g. RaccoonMods' Cooling Pack or Canadian Cuisine's Sugar Fudge). Modded status effects themselves aren't supported though (since that would be too much to maintain for me).
+- Fixed Scout's Generosity showing 7.5 *Petrify* when the game only applies 7 (happens when you trust the wiki without confirming the value in the game's code).
+
 ## 1.3.0
 
 - The *Low Gravity* afflication now also gets a custom duration bar for as long as it's active.

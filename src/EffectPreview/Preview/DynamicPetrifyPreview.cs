@@ -103,7 +103,7 @@ namespace EffectPreview.Preview
 
             float totalHeal = Affliction_HealAll.GetTotalPotentialHeal(target, action.healingAffliction.maxHealing);
             float value = totalHeal * action.healingToPetrifyRatio;
-            return Mathf.Clamp(value, action.minPetrify, action.maxPetrify);
+            return ItemPreviewCalculator.AppliedPetrify(Mathf.Clamp(value, action.minPetrify, action.maxPetrify));
         }
     }
 }

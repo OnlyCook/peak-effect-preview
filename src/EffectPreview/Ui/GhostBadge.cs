@@ -27,12 +27,20 @@ namespace EffectPreview.Ui
         private readonly Color _ghostForeground;
         private readonly Color _ghostOutline;
         private readonly CharacterAfflictions.STATUSTYPE _statusType;
+        private readonly BarAffliction _realAffliction;
         private bool _realShrinking;
         private float _realDisplayedWidth;
 
+        // where each width is animating toward this frame, handed to the count labels so their decimal moves together with the bar
+        private float _realTargetWidth;
+        private float _decreaseTargetWidth;
+        private float _increaseTargetWidth;
+
         private GhostBadge(RectTransform realRtf, GameObject realIcon, Strip decreaseGhost, Strip increaseGhost, WasteIndicator decreaseWaste, WasteIndicator increaseWaste,
-            BarLabel decreaseCountLabel, BarLabel increaseCountLabel, BarLabel realCountLabel, BarLabel countdownLabel, GhostStatusCapIcon capIcon, CharacterAfflictions.STATUSTYPE statusType)
+            BarLabel decreaseCountLabel, BarLabel increaseCountLabel, BarLabel realCountLabel, BarLabel countdownLabel, GhostStatusCapIcon capIcon, BarAffliction realAffliction)
         {
+            _realAffliction = realAffliction;
+            CharacterAfflictions.STATUSTYPE statusType = realAffliction.afflictionType;
             _statusType = statusType;
             _realRtf = realRtf;
             _realIcon = realIcon;
@@ -75,7 +83,7 @@ namespace EffectPreview.Ui
             GhostStatusCapIcon capIcon = GhostStatusCapIcon.Create(realAffliction.icon);
 
             GameObject realIcon = realAffliction.icon != null ? realAffliction.icon.gameObject : null;
-            return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost, decreaseWaste, increaseWaste, decreaseCountLabel, increaseCountLabel, realCountLabel, countdownLabel, capIcon, realAffliction.afflictionType);
+            return new GhostBadge(realBadge, realIcon, decreaseGhost, increaseGhost, decreaseWaste, increaseWaste, decreaseCountLabel, increaseCountLabel, realCountLabel, countdownLabel, capIcon, realAffliction);
         }
 
         // decreaseActive: this frame's normal ghost-bar decrease (ApplyWidths) is already controlling the real icon's
@@ -117,6 +125,7 @@ namespace EffectPreview.Ui
                 }
                 _realShrinking = true;
 
+                _realTargetWidth = targetWidth;
                 _realDisplayedWidth = Mathf.Lerp(_realDisplayedWidth, targetWidth, lerpStep);
                 _realRtf.sizeDelta = new Vector2(_realDisplayedWidth, _realRtf.sizeDelta.y);
 
@@ -128,6 +137,7 @@ namespace EffectPreview.Ui
             else if (_realShrinking)
             {
                 _realShrinking = false;
+                _realTargetWidth = -1f;
                 if (_realIcon != null)
                 {
                     _realIcon.SetActive(true);
@@ -136,8 +146,10 @@ namespace EffectPreview.Ui
 
             // only the pure removal and the pure increase beyond it need their own separate room
             float overlap = Mathf.Min(shrinkMagnitude, increaseAmount);
-            _decreaseGhost.Apply(fullLocalWidth * (shrinkMagnitude - overlap), lerpStep);
-            _increaseGhost.Apply(fullLocalWidth * increaseAmount, lerpStep);
+            _decreaseTargetWidth = fullLocalWidth * (shrinkMagnitude - overlap);
+            _increaseTargetWidth = fullLocalWidth * increaseAmount;
+            _decreaseGhost.Apply(_decreaseTargetWidth, lerpStep);
+            _increaseGhost.Apply(_increaseTargetWidth, lerpStep);
         }
 
         // sum of every row element's settled target width, not its current mid-lerp width, see RESEARCH.md
@@ -202,8 +214,22 @@ namespace EffectPreview.Ui
                 // (e.g. Energy Drink: -50 Drowsy clamped to 32 live, then +25 back - the decrease strip (and its label) only ever covers the net 7 that doesn't come back)
                 float overlap = Mathf.Min(shrinkMagnitude, increaseAmount);
                 float decreaseLabelAmount = shrinkMagnitude - overlap;
-                _decreaseCountLabel.Apply(_decreaseGhost.Rtf, decreaseLabelAmount > 0.0005f ? BarLabel.FormatCount(decreaseLabelAmount) : null, _ghostForeground, _ghostOutline, fontScale);
-                _increaseCountLabel.Apply(_increaseGhost.Rtf, increaseAmount > 0.0005f ? BarLabel.FormatCount(increaseAmount) : null, _ghostForeground, _ghostOutline, fontScale);
+                if (decreaseLabelAmount > 0.0005f)
+                {
+                    _decreaseCountLabel.ApplyCount(_decreaseGhost.Rtf, decreaseLabelAmount, _ghostForeground, _ghostOutline, fontScale, _decreaseTargetWidth);
+                }
+                else
+                {
+                    _decreaseCountLabel.Hide();
+                }
+                if (increaseAmount > 0.0005f)
+                {
+                    _increaseCountLabel.ApplyCount(_increaseGhost.Rtf, increaseAmount, _ghostForeground, _ghostOutline, fontScale, _increaseTargetWidth);
+                }
+                else
+                {
+                    _increaseCountLabel.Hide();
+                }
             }
             else
             {
@@ -216,22 +242,68 @@ namespace EffectPreview.Ui
             bool live = postDecreaseLive > 0.0005f;
             if (showCount && live)
             {
-                _realCountLabel.Apply(_realRtf, BarLabel.FormatCount(postDecreaseLive), _vanillaForeground, _vanillaOutline, fontScale);
+                // not shrunk by us this frame, so vanilla's BarAffliction is driving it toward its own size
+                float realTarget = _realShrinking ? _realTargetWidth : (_realAffliction != null ? _realAffliction.size : -1f);
+                _realCountLabel.ApplyCount(_realRtf, postDecreaseLive, _vanillaForeground, _vanillaOutline, fontScale, realTarget);
             }
             else
             {
                 _realCountLabel.Hide();
             }
 
-            string countdown = showCountdown && live ? FormatCountdown(postDecreaseLive) : null;
+            string countdown = null;
+            string narrowCountdown = null;
+            if (live)
+            {
+                if (_statusType == CharacterAfflictions.STATUSTYPE.Hunger)
+                {
+                    countdown = Plugin.Instance.Cfg.ShowHungerCountdown.Value ? FormatHungerCountdown() : null;
+                    narrowCountdown = _hungerNarrow;
+                }
+                else if (showCountdown)
+                {
+                    countdown = FormatCountdown(postDecreaseLive);
+                }
+            }
             if (countdown != null)
             {
-                _countdownLabel.ApplyCountdown(_realRtf, countdown, _vanillaForeground, _vanillaOutline);
+                _countdownLabel.ApplyCountdown(_realRtf, countdown, _vanillaForeground, _vanillaOutline, narrowContent: narrowCountdown);
             }
             else
             {
                 _countdownLabel.Hide();
             }
+        }
+
+        // hunger builds up hidden in the incremental buffer and only lands on the bar in whole HungerTickAmount steps
+        private const float HungerTickAmount = 0.025f;
+
+        private int _hungerSeconds = -1;
+        private string _hungerFull;
+        private string _hungerNarrow;
+
+        private string FormatHungerCountdown()
+        {
+            Character character = Character.localCharacter;
+            CharacterAfflictions afflictions = character?.refs.afflictions;
+            if (afflictions == null || character.data.isSkeleton || !character.data.fullyConscious || !afflictions.canGetHungry)
+            {
+                return null;
+            }
+            float perSecond = afflictions.hungerPerSecond * Ascents.hungerRateMultiplier;
+            if (perSecond <= 0f)
+            {
+                return null;
+            }
+            float remaining = (HungerTickAmount - afflictions.GetIncrementalStatus(CharacterAfflictions.STATUSTYPE.Hunger)) / perSecond;
+            int seconds = Mathf.Max(0, Mathf.CeilToInt(remaining));
+            if (seconds != _hungerSeconds)
+            {
+                _hungerSeconds = seconds;
+                _hungerFull = "(+2.5 in " + seconds + "s)";
+                _hungerNarrow = "(" + seconds + "s)";
+            }
+            return _hungerFull;
         }
 
         private string FormatCountdown(float value)

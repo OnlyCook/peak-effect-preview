@@ -97,8 +97,8 @@ namespace EffectPreview.Preview
                 : 0;
 
             bool cookingPreviewActive = Plugin.Instance.Cfg.EnableCookingPreview.Value
-                && Input.GetKey(Plugin.Instance.Cfg.CookingPreviewKey.Value)
-                && IsAbleToCookHeldItem(item, character);
+                && (Plugin.Instance.Cfg.AutoCookingPreview.Value || Input.GetKey(Plugin.Instance.Cfg.CookingPreviewKey.Value))
+                && IsAbleToCookHeldItem(item);
 
             bool pitonPlaceable = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsPitonPlaceable(item, character);
             bool ropeSpoolAboutToDeplete = Plugin.Instance.Cfg.EnableWeightPreview.Value && IsRopeSpoolAboutToDeplete(item, character);
@@ -209,9 +209,8 @@ namespace EffectPreview.Preview
             return item.CanUsePrimary();
         }
 
-        // holding the cooking preview key while looking at a lit campfire you're able to cook this item on right now,
-        // mirrors Campfire.IsInteractible/IsConstantlyInteractable's own gate, see RESEARCH.md
-        private bool IsAbleToCookHeldItem(Item item, Character character)
+        // looking at a campfire (portable stove included, see RESEARCH.md) you could cook this item on, lit or still to be lit
+        private static bool IsAbleToCookHeldItem(Item item)
         {
             if (!CookingPreviewCalculator.CanPreviewNextStage(item))
             {
@@ -221,7 +220,11 @@ namespace EffectPreview.Preview
             Interaction interaction = Interaction.instance;
             IInteractible hovered = interaction != null ? interaction.currentHovered : null;
 
-            return hovered is Campfire campfire && campfire.Lit;
+            if (!(hovered is Campfire campfire))
+            {
+                return false;
+            }
+            return campfire.Lit || (Plugin.Instance.Cfg.CookingPreviewAtUnlitFires.Value && campfire.state == Campfire.FireState.Off);
         }
 
         // empty-handed: preview what interacting with whatever the player is currently looking at would grant right now

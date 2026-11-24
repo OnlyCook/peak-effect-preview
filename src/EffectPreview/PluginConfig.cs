@@ -20,8 +20,10 @@ namespace EffectPreview
         internal ConfigEntry<bool> ShowGhostBarCounts;
         internal ConfigEntry<bool> ShowVanillaBarCounts;
         internal ConfigEntry<bool> ShowAfflictionCountdowns;
+        internal ConfigEntry<bool> ShowHungerCountdown;
         internal ConfigEntry<float> AfflictionCountdownFontScale;
         internal ConfigEntry<bool> PlainBarCounts;
+        internal ConfigEntry<bool> DecimalBarCounts;
         internal ConfigEntry<float> BarCountFontScale;
         internal ConfigEntry<bool> ShowSpecialStatusCounts;
         internal ConfigEntry<bool> ShowSpecialStatusDurationVisual;
@@ -31,6 +33,8 @@ namespace EffectPreview
         internal ConfigEntry<bool> EnableItemPickupPreviews;
         internal ConfigEntry<bool> EnableCookingPreview;
         internal ConfigEntry<KeyCode> CookingPreviewKey;
+        internal ConfigEntry<bool> AutoCookingPreview;
+        internal ConfigEntry<bool> CookingPreviewAtUnlitFires;
         internal ConfigEntry<bool> EnableWeightPreview;
         internal ConfigEntry<bool> EnableTimedUsagePreview;
         internal ConfigEntry<bool> EnableJetpackPreview;
@@ -63,6 +67,10 @@ namespace EffectPreview
                                                "While holding an item you're able to cook (near a lit campfire or portable stove), hold the cooking preview key to preview what its next cook stage would do instead of its current stage.");
             CookingPreviewKey = config.Bind("Item Previews", "cooking-preview-key", KeyCode.C,
                                             "Key to hold to preview a held item's next cook stage instead of its current one.");
+            AutoCookingPreview = config.Bind("Item Previews", "auto-cooking-preview", false,
+                                             "Preview a held item's next cook stage automatically while looking at a campfire or portable stove, without holding the cooking preview key.");
+            CookingPreviewAtUnlitFires = config.Bind("Item Previews", "cooking-preview-at-unlit-fires", true,
+                                                     "Also allow the cooking preview while looking at an unlit campfire or portable stove, not only a lit one.");
 
             EnableWasteIndicator = config.Bind("Bar Display", "enable-waste-indicator", false,
                                                "Show a marker on the ghost preview when the held item's effect would only be partially applied (some of it wasted).");
@@ -79,11 +87,15 @@ namespace EffectPreview
                                                "Show a number on the game's own (non-ghost) bars for their current amount.");
             ShowAfflictionCountdowns = config.Bind("Bar Display", "show-affliction-countdowns", barCountsDefault,
                                                    "Show a small countdown under the game's own affliction bars, like 10s+45: 10s is how long until the status effect is fully gone, +45 is how many seconds remain before it starts wearing off.");
+            ShowHungerCountdown = config.Bind("Bar Display", "show-hunger-countdown", barCountsDefault,
+                                              "Show a small countdown under the hunger bar, like (+2.5 in 37s): hunger doesn't grow smoothly but in steps of 2.5, this is how long until the next one.");
             AfflictionCountdownFontScale = config.Bind("Bar Display", "affliction-countdown-font-scale", 1f,
                                                        new ConfigDescription("Multiplier for the size of the affliction countdown text, independent of bar-count-font-scale.",
                                                        new AcceptableValueRange<float>(0.5f, 3f)));
             PlainBarCounts = config.Bind("Bar Display", "plain-bar-counts", false,
                                          "Draw every bar count number as plain white with a dark gray border, instead of tinting it to match its bar's color.");
+            DecimalBarCounts = config.Bind("Bar Display", "decimal-bar-counts", false,
+                                           "Show bar count numbers with one smaller decimal, like 7.5 instead of 7. The decimal is left out on bars too narrow to fit it.");
             BarCountFontScale = config.Bind("Bar Display", "bar-count-font-scale", 1f,
                                             new ConfigDescription("Multiplier applied on top of the automatic size-to-fit bar scaling used by both ghost/vanilla bar count numbers.",
                                             new AcceptableValueRange<float>(0.5f, 3f)));

@@ -39,6 +39,12 @@ namespace EffectPreview.Preview
             return usesData.Value > 0;
         }
 
+        // petrify is a whole-number int, AddStatus/SubtractStatus floor each call's magnitude to whole points before applying it
+        internal static float AppliedPetrify(float amount)
+        {
+            return amount >= 0f ? Mathf.FloorToInt(amount * 100f) / 100f : -Mathf.FloorToInt(-amount * 100f) / 100f;
+        }
+
         private static void AddStatus(ItemPreview preview, bool simulatedSkeleton, CharacterAfflictions.STATUSTYPE type, float amount)
         {
             if (simulatedSkeleton && !AffectsSkeleton(type))
@@ -144,7 +150,7 @@ namespace EffectPreview.Preview
                     // Petrify is routed to data.SetPetrify/AddPetrify, not the status array - goes on PetrifyDelta
                     if (modifyStatus.statusType == CharacterAfflictions.STATUSTYPE.Petrify)
                     {
-                        preview.PetrifyDelta += modifyStatus.changeAmount;
+                        preview.PetrifyDelta += AppliedPetrify(modifyStatus.changeAmount);
                         continue;
                     }
                     if (simulatedSkeleton && !AffectsSkeleton(modifyStatus.statusType))
@@ -184,7 +190,7 @@ namespace EffectPreview.Preview
                 // must come before Action_ApplyAffliction below since it derives from it
                 else if (action is Action_SuperJumpAmulet superJumpAmulet)
                 {
-                    preview.PetrifyDelta += superJumpAmulet.petrifyPerUse;
+                    preview.PetrifyDelta += AppliedPetrify(superJumpAmulet.petrifyPerUse);
                     AddAffliction(preview, simulatedSkeleton, superJumpAmulet.affliction);
                     if (superJumpAmulet.extraAfflictions != null)
                     {
@@ -432,7 +438,9 @@ namespace EffectPreview.Preview
         }
 
         // covers afflictions whose effect only lands once their buff wears off (energy drink's crash, etc)
-        private static void AddAffliction(ItemPreview preview, bool simulatedSkeleton, Affliction affliction)
+        private const int MaxModdedAfflictionDepth = 4;
+
+        private static void AddAffliction(ItemPreview preview, bool simulatedSkeleton, Affliction affliction, int depth = 0)
         {
             if (affliction is Affliction_FasterBoi fasterBoi)
             {
@@ -465,6 +473,45 @@ namespace EffectPreview.Preview
             else if (affliction is Affliction_AdjustColdOverTime coldOverTime)
             {
                 AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Cold, coldOverTime.statusPerSecond * coldOverTime.totalTime);
+            }
+            else if (affliction is Affliction_AdjustStatus adjustStatus)
+            {
+                if (adjustStatus.statusType == CharacterAfflictions.STATUSTYPE.Petrify)
+                {
+                    preview.PetrifyDelta += AppliedPetrify(adjustStatus.statusAmount);
+                }
+                else
+                {
+                    AddStatus(preview, simulatedSkeleton, adjustStatus.statusType, adjustStatus.statusAmount);
+                }
+            }
+            // UpdateEffect only adds once timeElapsed passes the delay, so the delay itself eats into totalTime
+            else if (affliction is Affliction_PoisonOverTime poisonOverTime)
+            {
+                AddStatus(preview, simulatedSkeleton, CharacterAfflictions.STATUSTYPE.Poison, poisonOverTime.statusPerSecond * Mathf.Max(0f, poisonOverTime.totalTime - poisonOverTime.delayBeforeEffect));
+            }
+            else if (affliction is Affliction_AddBonusStamina bonusStamina)
+            {
+                preview.ExtraStaminaDelta += bonusStamina.staminaAmount;
+            }
+            // only the same curse/petrify-sparing variant ClearsCurableStatusOnUse already previews
+            else if (affliction is Affliction_ClearAllStatus clearAllStatus && clearAllStatus.excludeCurse && !clearAllStatus.includePetrify)
+            {
+                preview.ClearsCurableStatusOnUse = true;
+            }
+            else if (depth < MaxModdedAfflictionDepth && ModdedAfflictions.IsModded(affliction))
+            {
+                if (ModdedAfflictions.TryGetStatusOverTime(affliction, out CharacterAfflictions.STATUSTYPE overTimeStatus, out float overTimeTotal))
+                {
+                    AddStatus(preview, simulatedSkeleton, overTimeStatus, overTimeTotal);
+                    return;
+                }
+                var nested = new List<Affliction>();
+                ModdedAfflictions.CollectNested(affliction, nested);
+                foreach (Affliction inner in nested)
+                {
+                    AddAffliction(preview, simulatedSkeleton, inner, depth + 1);
+                }
             }
         }
     }
